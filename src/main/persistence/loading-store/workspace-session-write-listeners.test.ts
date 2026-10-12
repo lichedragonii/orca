@@ -3,7 +3,8 @@ import type { ExecutionHostId } from '../../../shared/execution-host'
 import type { WorkspaceSessionState } from '../../../shared/workspace-session-state-types'
 import { TEST_LEAF_1, TEST_LEAF_2 } from '../../persistence-session-fixtures'
 import type { WorkspaceLayoutEvent } from '../../../shared/workspace-layout/workspace-layout-stream-frames'
-import { WorkspaceLayoutStream } from '../../runtime/workspace-layout-stream'
+import { reloadHolderOnExternalWrites } from '../../runtime/holder-external-write-reload'
+import { RuntimeWorkspaceLayouts } from '../../runtime/runtime-workspace-layouts'
 import { ProfileStateWriterError } from '../profile-state/profile-state-writer-errors'
 import { fixture } from './profile-state-delayed-authority-fixture'
 import type { Store } from './store'
@@ -75,11 +76,16 @@ async function runScenario(mode: Mode) {
   const { store, authority, readState } = await fixture()
   const pushes: WorkspaceLayoutEvent[] = []
   if (mode !== 'none') {
-    const stream = new WorkspaceLayoutStream({
+    const holder = new RuntimeWorkspaceLayouts({
       store: () => store,
-      homeHostId: (key) => homeOf(store, key)
+      homeHostId: (key) => homeOf(store, key),
+      isFrozenPartition: () => false,
+      terminal: () => ({ fact: null }),
+      stopTerminals: () => {}
     })
-    stream.subscribe(
+    holder.load()
+    reloadHolderOnExternalWrites(holder, store)
+    holder.subscribe(
       mode === 'publisher'
         ? (event) => pushes.push(event)
         : () => {
@@ -136,7 +142,7 @@ function withStableFixtureIds(value: unknown): unknown {
   return JSON.parse(json)
 }
 
-describe('workspace session write observers are inert', () => {
+describe('the holder reloading external writes (stack-internal bridge) is inert', () => {
   it('leave saved state and write order identical, even when they throw', async () => {
     const baseline = await runScenario('none')
     const observed = await runScenario('publisher')
@@ -166,15 +172,7 @@ describe('workspace session write observers are inert', () => {
         [TEST_LEAF_1, 'observed-pty'],
         [TEST_LEAF_2, 'split-pty']
       ],
-      // Memory is published before the disk write; the failed write's rollback republishes.
-      [
-        [TEST_LEAF_1, 'failed-pty'],
-        [TEST_LEAF_2, 'split-pty']
-      ],
-      [
-        [TEST_LEAF_1, 'observed-pty'],
-        [TEST_LEAF_2, 'split-pty']
-      ],
+      // The failed write was rolled back before the holder reloaded: nothing changed to publish.
       [
         [TEST_LEAF_1, undefined],
         [TEST_LEAF_2, 'split-pty']

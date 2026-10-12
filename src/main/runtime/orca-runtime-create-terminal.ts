@@ -123,57 +123,61 @@ export class OrcaRuntimeWithCreateTerminal extends OrcaRuntimeWithTerminalCreate
         try {
           const { launchAgent } = launchOpts
           launchOpts.onPtySpawnDispatched?.({ launchConfig: effectiveLaunchConfig, launchAgent })
-          result = await dependencies.spawnInAdmittedPane(this.store, this.ptyController, {
-            cols: 120,
-            rows: 40,
-            cwd,
-            command: sequencedStartupCommand
-              ? launchOpts.command
-              : (agentTeamsPlan?.command ?? launchOpts.command),
-            launchAgent: launchOpts.launchAgent,
-            commandDelivery: 'provider',
-            startupCommandDelivery: launchOpts.startupCommandDelivery,
-            env,
-            envToDelete: dependencies.mergeTerminalEnvDeletionKeys(
-              launchOpts.envToDelete,
-              agentTeamsPlan?.envToDelete
-            ),
-            resumeProviderSession: launchOpts.resumeProviderSession,
-            telemetry: launchOpts.telemetry,
-            connectionId: workspace.connectionId,
-            worktreeId: workspace.id,
-            preAllocatedHandle,
-            tabId,
-            leafId,
-            ...(launchOpts.shellOverride ? { shellOverride: launchOpts.shellOverride } : {}),
-            ...(terminalColorQueryReplies ? { terminalColorQueryReplies } : {}),
-            terminalKittyKeyboardProtocol: launchOpts.terminalKittyKeyboardProtocol,
-            ...(launchOpts.agentSessionClaim
-              ? {
-                  agentSessionEnsure: {
-                    claim: launchOpts.agentSessionClaim,
-                    surface: {
-                      worktreeId: workspace.id,
-                      tabId,
-                      leafId,
-                      terminalHandle: preAllocatedHandle
+          result = await dependencies.spawnInAdmittedPane(
+            this.workspaceLayouts,
+            this.ptyController,
+            {
+              cols: 120,
+              rows: 40,
+              cwd,
+              command: sequencedStartupCommand
+                ? launchOpts.command
+                : (agentTeamsPlan?.command ?? launchOpts.command),
+              launchAgent: launchOpts.launchAgent,
+              commandDelivery: 'provider',
+              startupCommandDelivery: launchOpts.startupCommandDelivery,
+              env,
+              envToDelete: dependencies.mergeTerminalEnvDeletionKeys(
+                launchOpts.envToDelete,
+                agentTeamsPlan?.envToDelete
+              ),
+              resumeProviderSession: launchOpts.resumeProviderSession,
+              telemetry: launchOpts.telemetry,
+              connectionId: workspace.connectionId,
+              worktreeId: workspace.id,
+              preAllocatedHandle,
+              tabId,
+              leafId,
+              ...(launchOpts.shellOverride ? { shellOverride: launchOpts.shellOverride } : {}),
+              ...(terminalColorQueryReplies ? { terminalColorQueryReplies } : {}),
+              terminalKittyKeyboardProtocol: launchOpts.terminalKittyKeyboardProtocol,
+              ...(launchOpts.agentSessionClaim
+                ? {
+                    agentSessionEnsure: {
+                      claim: launchOpts.agentSessionClaim,
+                      surface: {
+                        worktreeId: workspace.id,
+                        tabId,
+                        leafId,
+                        terminalHandle: preAllocatedHandle
+                      }
                     }
                   }
-                }
-              : {}),
-            ...(launchOpts.agentSessionCreateOperationId
-              ? { agentSessionCreateOperationId: launchOpts.agentSessionCreateOperationId }
-              : {}),
-            ...dependencies.callerSpawnScope(launchOpts),
-            ...(launchOpts.onPtySpawnCommitted
-              ? { onPtySpawnCommitted: reportPtySpawnCommitted }
-              : {}),
-            ...(adoptedBeforeLaunch ? { adoptedStablePane: adoptedBeforeLaunch } : {}),
-            ...dependencies.newTabIn(launchOpts),
-            ...(launchOpts.sessionId ? { sessionId: launchOpts.sessionId } : {}),
-            ...(!adoptedBeforeLaunch && launchOpts.isNewSession ? { isNewSession: true } : {}),
-            ...dependencies.BACKGROUND_TERMINAL_SPAWN_FLAGS
-          })
+                : {}),
+              ...(launchOpts.agentSessionCreateOperationId
+                ? { agentSessionCreateOperationId: launchOpts.agentSessionCreateOperationId }
+                : {}),
+              ...dependencies.callerSpawnScope(launchOpts),
+              ...(launchOpts.onPtySpawnCommitted
+                ? { onPtySpawnCommitted: reportPtySpawnCommitted }
+                : {}),
+              ...(adoptedBeforeLaunch ? { adoptedStablePane: adoptedBeforeLaunch } : {}),
+              ...dependencies.newTabIn(launchOpts),
+              ...(launchOpts.sessionId ? { sessionId: launchOpts.sessionId } : {}),
+              ...(!adoptedBeforeLaunch && launchOpts.isNewSession ? { isNewSession: true } : {}),
+              ...dependencies.BACKGROUND_TERMINAL_SPAWN_FLAGS
+            }
+          )
         } finally {
           releaseStablePaneCreate?.()
         }

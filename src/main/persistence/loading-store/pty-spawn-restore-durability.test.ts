@@ -57,7 +57,7 @@ describe.each(['ipc', 'runtime'])('%s restored scrollback', (controller) => {
         ctx.result = result
         ctx.metadataLeafId = binding.leafId
         await admitRuntimeSpawnPane(store, binding)
-        ctx.hostSessionBinding = { store, ...binding }
+        ctx.hostSessionBinding = { ...binding }
         commit = () => commitRuntimePtySpawn(ctx)
       }
       const gate = authority.pause()

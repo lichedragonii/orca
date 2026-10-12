@@ -1,7 +1,8 @@
 // What `layout.subscribe` publishes for one workspace: an explicit projection of the model, so the
 // model's internal shape is never a wire contract. Runtime records (incarnations, sleeping agents,
 // closed tabs, default-tabs marks), terminal spawn inputs and the legacy persistence record are
-// not in it; neither are content facts or any view's selection.
+// not in it; neither are content facts or any view's selection. A pane's status and live title are
+// joined at publish from facts the runtime holds, never saved.
 
 import type { AgentType } from '../agent-status-types'
 import type { AiVaultSessionTitle } from '../ai-vault-session-title'
@@ -10,15 +11,31 @@ import type { TabContentType, TabGroupLayoutNode } from '../tab-types'
 import type { TerminalPaneLayoutNode } from '../terminal-tab-types'
 import { pickStoredFields } from './stored-record-fields'
 import { collectLayoutLeafIdsInOrder } from './terminal-pane-tree'
-import { tabsInOrder, type LayoutTab, type WorkspaceLayout } from './workspace-layout-model'
+import {
+  tabsInOrder,
+  type LayoutLeaf,
+  type LayoutTab,
+  type WorkspaceLayout
+} from './workspace-layout-model'
+import type { PaneStatus } from './workspace-layout-pane-status'
 import { tabExecutionHostId } from './workspace-layout-tab-host'
 
 export type PublishedPane = {
   leafId: string
   /** The terminal the pane shows; absent while unbound. */
   ptyId?: string
+  /** The user's pane title. */
   title?: string
+  status: PaneStatus
+  /** The title the pane's terminal reports (OSC, agent); shown when the user set none. */
+  liveTitle?: string
 }
+
+/** What the runtime knows of a pane beyond the model: its status and its terminal's live title. */
+export type PublishedPaneFacts = (pane: {
+  leafId: string
+  leaf: LayoutLeaf | undefined
+}) => Pick<PublishedPane, 'status' | 'liveTitle'>
 
 export type PublishedTerminal = {
   root: TerminalPaneLayoutNode | null
@@ -77,7 +94,8 @@ export type PublishedWorkspaceLayout = {
 function publishTab(
   tab: LayoutTab,
   workspace: WorkspaceLayout,
-  partition: ExecutionHostId
+  partition: ExecutionHostId,
+  paneFacts: PublishedPaneFacts
 ): PublishedTab {
   const published: PublishedTab = {
     id: tab.id,
@@ -100,7 +118,13 @@ function publishTab(
   if (tab.kind === 'terminal') {
     const panes = collectLayoutLeafIdsInOrder(tab.panes.root).map((leafId): PublishedPane => {
       const leaf = workspace.leaves?.[leafId]
-      return { leafId, ...(leaf ? pickStoredFields(leaf, ['ptyId', 'title']) : {}) }
+      const { status, liveTitle } = paneFacts({ leafId, leaf })
+      return {
+        leafId,
+        ...(leaf ? pickStoredFields(leaf, ['ptyId', 'title']) : {}),
+        status,
+        ...(liveTitle ? { liveTitle } : {})
+      }
     })
     published.terminal = {
       root: tab.panes.root,
@@ -114,13 +138,14 @@ function publishTab(
 
 export function publishWorkspaceLayout(
   workspace: WorkspaceLayout,
-  partition: ExecutionHostId
+  partition: ExecutionHostId,
+  paneFacts: PublishedPaneFacts
 ): PublishedWorkspaceLayout {
   return {
     worktreeId: workspace.worktreeId,
     groups: workspace.groups.map((group) => ({ id: group.id, tabIds: [...group.tabOrder] })),
     ...(workspace.groupLayout ? { groupLayout: workspace.groupLayout } : {}),
-    tabs: tabsInOrder(workspace).map((tab) => publishTab(tab, workspace, partition)),
+    tabs: tabsInOrder(workspace).map((tab) => publishTab(tab, workspace, partition, paneFacts)),
     editorFiles: (workspace.editorFiles ?? []).map((file) => ({
       filePath: file.filePath,
       relativePath: file.relativePath,

@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { LOCAL_EXECUTION_HOST_ID, toSshExecutionHostId } from '../execution-host'
 import { loadWorkspaceLayout } from './workspace-layout-load'
 import { localDesktopSession } from './workspace-layout-profile.test-fixture'
-import { publishWorkspaceLayout } from './workspace-layout-published'
+import { publishWorkspaceLayout, type PublishedPaneFacts } from './workspace-layout-published'
 import { nameBasedLoadContext } from './workspace-layout-minted-ids'
 import { checkLayoutRoundTrip } from './workspace-layout-round-trip-check'
 import { GIT_KEY, leaf } from './workspace-layout-session.test-fixture'
+
+const bound: PublishedPaneFacts = ({ leaf }) =>
+  leaf?.ptyId ? { status: 'running', liveTitle: 'vim' } : { status: 'restorable' }
 
 function published() {
   const { layout } = loadWorkspaceLayout(
@@ -13,7 +16,7 @@ function published() {
     localDesktopSession(),
     nameBasedLoadContext()
   )
-  return { layout, workspace: publishWorkspaceLayout(layout.workspaces[GIT_KEY]!, 'local') }
+  return { layout, workspace: publishWorkspaceLayout(layout.workspaces[GIT_KEY]!, 'local', bound) }
 }
 
 describe('publishWorkspaceLayout: the explicit published projection', () => {
@@ -35,7 +38,9 @@ describe('publishWorkspaceLayout: the explicit published projection', () => {
     expect(agent).toMatchObject({ entityId: 'term-agent', customTitle: 'Agent', isPinned: true })
     expect(agent.terminal).toEqual({
       root: { type: 'leaf', leafId: leaf(3) },
-      panes: [{ leafId: leaf(3), ptyId: `${GIT_KEY}@@aaaa0003` }],
+      panes: [
+        { leafId: leaf(3), ptyId: `${GIT_KEY}@@aaaa0003`, status: 'running', liveTitle: 'vim' }
+      ],
       chatLeafId: leaf(3),
       defaultTitle: 'Terminal 2'
     })
@@ -63,7 +68,7 @@ describe('publishWorkspaceLayout: the explicit published projection', () => {
     const { layout } = published()
     const git = layout.workspaces[GIT_KEY]!
     git.editorFiles = git.editorFiles!.map((file) => ({ ...file, externalSshTargetId: 'box' }))
-    const tabs = publishWorkspaceLayout(git, 'local').tabs
+    const tabs = publishWorkspaceLayout(git, 'local', bound).tabs
     expect(tabs.find((tab) => tab.kind === 'editor')?.executionHostId).toBe(
       toSshExecutionHostId('box')
     )

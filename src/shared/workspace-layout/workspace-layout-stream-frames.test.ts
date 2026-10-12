@@ -13,7 +13,9 @@ function publishedLayout() {
     localDesktopSession(),
     nameBasedLoadContext()
   )
-  return publishWorkspaceLayout(layout.workspaces[GIT_KEY]!, LOCAL_EXECUTION_HOST_ID)
+  return publishWorkspaceLayout(layout.workspaces[GIT_KEY]!, LOCAL_EXECUTION_HOST_ID, () => ({
+    status: 'restorable'
+  }))
 }
 
 describe('readWorkspaceLayoutStreamFrame', () => {

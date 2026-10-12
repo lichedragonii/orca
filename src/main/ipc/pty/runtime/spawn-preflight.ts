@@ -133,25 +133,21 @@ export async function prepareRuntimePtySpawn(
       ? await ctx.deps.prepareClaudeAuth(ctx.codexSelectionTarget)
       : null
 
-  ctx.shouldPersistHostSessionBinding = args.persistHostSessionBinding === true
-  if (ctx.shouldPersistHostSessionBinding) {
+  if (args.runtimeAdmittedPane) {
     if (
-      !ctx.deps.store ||
       typeof args.worktreeId !== 'string' ||
       typeof args.tabId !== 'string' ||
       !isValidTerminalTabId(args.tabId) ||
       typeof args.leafId !== 'string' ||
       !isTerminalLeafId(args.leafId)
     ) {
-      throw new Error('Cannot persist runtime PTY binding without worktreeId, tabId, and leafId')
+      throw new Error('Cannot spawn into an admitted pane without worktreeId, tabId, and leafId')
     }
     ctx.hostSessionBinding = {
-      store: ctx.deps.store,
       worktreeId: args.worktreeId,
       tabId: args.tabId,
       leafId: args.leafId,
-      ...(args.expectedSourceBinding ? { expectedSourceBinding: args.expectedSourceBinding } : {}),
-      ...(args.placement ? { placement: args.placement } : {})
+      ...(args.expectedSourceBinding ? { expectedSourceBinding: args.expectedSourceBinding } : {})
     }
   }
   ctx.env = ctx.claudeAuth ? { ...args.env, ...ctx.claudeAuth.envPatch } : args.env

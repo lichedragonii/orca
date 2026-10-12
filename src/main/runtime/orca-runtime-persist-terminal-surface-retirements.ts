@@ -3,19 +3,21 @@ import { OrcaRuntimeWithTouchMobileSessionTabsForWorktree } from './orca-runtime
 import type { RetiredTerminalSurface } from './mobile-session-terminal-retirement'
 import type { RuntimeMobileSessionRetiredTerminalSurface } from '../../shared/runtime-types'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
-import { retireTerminalSurfaceFromPersistence } from './mobile-session-terminal-persistence-retirement'
+import type { ProcessExitFacts } from '../../shared/workspace-layout/workspace-layout-process-exit'
 import { retireTerminalSurfacesFromSnapshot } from './mobile-session-terminal-retirement'
 import { attachRetirementProofsToSnapshot } from './mobile-session-terminal-retirement-proof'
 import { getRepoIdFromWorktreeId } from '../../shared/worktree/id'
 
 export class OrcaRuntimeWithPersistTerminalSurfaceRetirements extends OrcaRuntimeWithTouchMobileSessionTabsForWorktree {
   /**
-   * Retires each surface in the in-memory session partition of the host that owns its worktree.
-   * Why: an SSH pane's durable surface lives in that connection's partition; retiring it
-   * against the local partition strands the real ghost and bumps a foreign host's epoch.
-   * `accepted` held the surface; `unpersisted` had no partition to hold it (or refused the write).
+   * Applies the exit to each surface's pane in the holder, in the partition of the host that owns
+   * its worktree. `accepted` left the layout (retired, or already gone); a pane the exit rule keeps
+   * or only unbinds is in neither list. `unpersisted` had no partition to hold it.
    */
-  protected stageTerminalSurfaceRetirements(retiredSurfaces: readonly RetiredTerminalSurface[]): {
+  protected stageTerminalSurfaceRetirements(
+    retiredSurfaces: readonly RetiredTerminalSurface[],
+    exit: Omit<ProcessExitFacts, 'tabHadPaneAtConnect'>
+  ): {
     accepted: RetiredTerminalSurface[]
     unpersisted: RetiredTerminalSurface[]
   } {
@@ -24,46 +26,31 @@ export class OrcaRuntimeWithPersistTerminalSurfaceRetirements extends OrcaRuntim
     for (const surface of retiredSurfaces) {
       const hostId =
         this.tryGetWorkspaceSessionHostIdForWorktree(surface.worktreeId) ?? LOCAL_EXECUTION_HOST_ID
-      const current = this.store?.getWorkspaceSession?.(hostId)
-      if (!current) {
+      if (!this.workspaceLayouts.model(hostId)) {
         unpersisted.push(surface)
         continue
       }
-      const next = retireTerminalSurfaceFromPersistence(current, surface)
-      if (next === current) {
-        continue
+      const exited = {
+        worktreeId: surface.worktreeId,
+        terminalTabId: surface.parentTabId,
+        leafId: surface.leafId,
+        ptyId: surface.ptyId,
+        ...(surface.incarnationId ? { incarnationId: surface.incarnationId } : {})
       }
-      try {
-        this.store.setWorkspaceSession(next, hostId)
+      if (this.workspaceLayouts.processExited(hostId, exited, exit) === 'gone') {
         accepted.push(surface)
-      } catch (error) {
-        // Why: the process is gone whether or not the profile admits the write (quit, maintenance).
-        console.error('[runtime] could not stage terminal retirement:', error)
-        unpersisted.push(surface)
       }
     }
     return { accepted, unpersisted }
-  }
-
-  // Why no rollback: the process is gone, so a failed write leaves the retirement for the next one.
-  protected async persistStagedTerminalSurfaceRetirements(): Promise<void> {
-    if (!this.store?.runDurableMutation) {
-      return
-    }
-    try {
-      // Why if-dirty: an earlier write, or another exit's, may already carry this retirement.
-      await this.store.runDurableMutation(() => ({ value: undefined, persist: 'if-dirty' }))
-    } catch (error) {
-      console.error('[runtime] terminal retirement is not yet durable:', error)
-    }
   }
 
   // Why synchronous: the exit's stream end cues clients to re-activate, which must find the leaf gone.
   protected retireMobileSessionSurfacesForPty(
     ptyId: string,
     incarnationId: string,
-    exactSurfaces: readonly Pick<RetiredTerminalSurface, 'worktreeId' | 'parentTabId' | 'leafId'>[]
-  ): Promise<void> | undefined {
+    exactSurfaces: readonly Pick<RetiredTerminalSurface, 'worktreeId' | 'parentTabId' | 'leafId'>[],
+    exit: Omit<ProcessExitFacts, 'tabHadPaneAtConnect'>
+  ): void {
     const terminalHandle =
       this.handleByPtyId.get(ptyId) ?? this.findHandleForPtyRecord(ptyId) ?? undefined
     const retiredSurfaceByKey = new Map<string, RetiredTerminalSurface>()
@@ -93,9 +80,9 @@ export class OrcaRuntimeWithPersistTerminalSurfaceRetirements extends OrcaRuntim
     }
     const retiredSurfaces = [...retiredSurfaceByKey.values()]
     if (retiredSurfaces.length === 0) {
-      return undefined
+      return
     }
-    const staged = this.stageTerminalSurfaceRetirements(retiredSurfaces)
+    const staged = this.stageTerminalSurfaceRetirements(retiredSurfaces, exit)
     for (const surface of staged.unpersisted) {
       const repoId = getRepoIdFromWorktreeId(surface.worktreeId)
       this.terminalTopologyRevisionByRepoId.set(
@@ -141,7 +128,6 @@ export class OrcaRuntimeWithPersistTerminalSurfaceRetirements extends OrcaRuntim
       }
       this.publishRetiredTerminalSurfaceProofs(worktreeId, retirementProofs)
     }
-    return staged.accepted.length > 0 ? this.persistStagedTerminalSurfaceRetirements() : undefined
   }
 
   /** Ships durable retirement proofs on their own frame when no surface removal carries them. */

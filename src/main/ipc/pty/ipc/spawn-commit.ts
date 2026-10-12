@@ -58,7 +58,6 @@ async function commitReservedPtyIpcSpawn(ctx: PtyIpcSpawnState): Promise<PtySpaw
     })
     const rejectedRegistration = registerPersistedPtySpawn(
       ctx.deps.runtime,
-      ctx.deps.store,
       ctx.result.id,
       args.worktreeId,
       null,

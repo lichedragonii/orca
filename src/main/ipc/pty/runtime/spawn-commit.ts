@@ -21,23 +21,16 @@ import {
 import { seedTerminalRestoreRecordsFromSpawnResult } from '../pane/agent-session-owners'
 import { seedHeadlessTerminalFromSpawnResult } from '../pane/terminal-spawn-restore'
 import { recordPtySpawnTelemetry } from '../pane/spawn-telemetry'
-import { persistAdmittedStablePaneBinding } from '../pane/stable-owner'
 import {
   isNativeWindowsLocalPtySpawn,
   markNativeWindowsConptyPty
 } from '../../../runtime/terminal-model-query-authority'
 import { LOCAL_EXECUTION_HOST_ID } from '../../../../shared/execution-host'
-import { createTerminalSessionStateSaveFailureMessage } from '../../../../shared/terminal-session-state-save-failure'
 import { resolvePaneSpawnReservation } from '../pane/spawn-reservation'
 import { admitProviderReattachLaunchIdentity } from '../pane/launch-authority'
-import { spawnCommitBindingOrigin } from '../../../persistence/loading-store/pty-binding-span'
 import type { RuntimePtySpawnState } from './spawn-state'
 import { commitPtyWithOpenCodePromptIntent } from '../../../opencode/opencode-startup-prompt-owner'
-import {
-  admitPtyReattachOwnership,
-  discardUnpersistedPtySpawn,
-  registerPersistedPtySpawn
-} from '../pane/spawn-registration'
+import { admitPtyReattachOwnership, registerPersistedPtySpawn } from '../pane/spawn-registration'
 
 export async function commitRuntimePtySpawn(ctx: RuntimePtySpawnState) {
   return commitPtyWithOpenCodePromptIntent(ctx, () => commitReservedRuntimePtySpawn(ctx))
@@ -59,23 +52,6 @@ async function commitReservedRuntimePtySpawn(ctx: RuntimePtySpawnState) {
   // Seed before the first disk await so live output appends to the restored history.
   seedHeadlessTerminalFromSpawnResult(ctx.deps.runtime, ctx.result, ctx.spawnIdentityPaneKey)
   seedTerminalRestoreRecordsFromSpawnResult(ctx.deps.runtime, ctx.result)
-  try {
-    ctx.stablePaneBindingPersisted = await persistAdmittedStablePaneBinding({
-      store: ctx.hostSessionBinding?.store,
-      owner: ctx.stablePaneOwner,
-      result: ctx.result,
-      worktreeId: ctx.hostSessionBinding?.worktreeId,
-      startupCwd: ctx.cwd
-    })
-  } catch (error) {
-    if (error instanceof Error && error.message === 'terminal_pane_owner_changed') {
-      throw error
-    }
-    console.error('[pty] failed to persist runtime PTY binding after attach:', error)
-    throw Object.assign(new Error(createTerminalSessionStateSaveFailureMessage(error)), {
-      agentSessionOperationOutcome: 'unknown' as const
-    })
-  }
   if (ctx.result.agentSessionEnsure?.disposition === 'adopted') {
     // Why: an adoption is an attach to a live owner by definition, but an adopted reply can omit
     // isReattach; derive it once so the size commit and the reservation agree.
@@ -83,7 +59,6 @@ async function commitReservedRuntimePtySpawn(ctx: RuntimePtySpawnState) {
     const owner = ctx.result.agentSessionEnsure.owner
     const rejectedRegistration = registerPersistedPtySpawn(
       ctx.deps.runtime,
-      ctx.hostSessionBinding?.store ?? ctx.deps.store,
       ctx.result.id,
       owner.surface.worktreeId,
       null,
@@ -134,42 +109,9 @@ async function commitReservedRuntimePtySpawn(ctx: RuntimePtySpawnState) {
       agentSessionEnsure: ctx.result.agentSessionEnsure
     }
   }
-  if (ctx.hostSessionBinding && !ctx.stablePaneBindingPersisted) {
-    try {
-      const { store, worktreeId, tabId, leafId, expectedSourceBinding, placement } =
-        ctx.hostSessionBinding
-      const binding = {
-        worktreeId,
-        tabId,
-        leafId,
-        ptyId: ctx.result.id,
-        // The runtime wrote the pane before spawning; a pane gone by now was closed meanwhile.
-        mayCreate: false,
-        ...(ctx.result.incarnationId ? { incarnationId: ctx.result.incarnationId } : {}),
-        ...(ctx.cwd ? { startupCwd: ctx.cwd } : {}),
-        ...(expectedSourceBinding ? { expectedSourceBinding } : {}),
-        ...(placement ? { placement } : {}),
-        origin: spawnCommitBindingOrigin(ctx.result, expectedSourceBinding)
-      }
-      const persisted = await store.persistPtyBinding(binding)
-      if (persisted === false) {
-        throw new Error('terminal_split_source_not_found')
-      }
-    } catch (err) {
-      console.error('[pty] failed to persist runtime PTY binding after spawn:', err)
-      await discardUnpersistedPtySpawn(ctx.provider, ctx.result)
-      if (err instanceof Error && err.message === 'terminal_split_source_not_found') {
-        throw err
-      }
-      throw Object.assign(new Error(createTerminalSessionStateSaveFailureMessage(err)), {
-        agentSessionOperationOutcome: 'unknown' as const
-      })
-    }
-  }
   if (args.worktreeId) {
     const rejectedRegistration = registerPersistedPtySpawn(
       ctx.deps.runtime,
-      ctx.hostSessionBinding?.store ?? ctx.deps.store,
       ctx.result.id,
       args.worktreeId,
       null,

@@ -1,10 +1,7 @@
-import { rollbackWorkspaceSessionAfterFailedAsyncWrite } from '../../../persistence/restoring-sessions/workspace-session-write-rollback'
-import { cloneWorkspaceSessionState } from '../../../persistence/restoring-sessions/session-owner-fields'
 import { toSshExecutionHostId } from '../../../../shared/execution-host'
-import { makePaneKey, parsePaneKey } from '../../../../shared/stable-pane-id'
+import { parsePaneKey } from '../../../../shared/stable-pane-id'
 import { UNVERIFIED_PROCESS_EXIT_CODE } from '../../../../shared/terminal-exit-cause'
 import type { Store } from '../../../persistence'
-import { retireTerminalSurfaceFromPersistence } from '../../../runtime/mobile-session-terminal-persistence-retirement'
 import type { OrcaRuntimeService } from '../../../runtime/orca-runtime'
 import type { IPtyProvider, PtySpawnOptions, PtySpawnResult } from '../../../providers/types'
 import { getPtySshConnectionId } from '../provider/registry'
@@ -120,50 +117,27 @@ export function resolveStablePaneOwner(
   }
 }
 
-export async function retirePersistedStablePaneOwner(
-  store: Store | undefined,
+/** Attach absence: the pane stays, unbound; false when it now shows another terminal. */
+export function unbindAbsentStablePaneOwner(
+  runtime: OrcaRuntimeService | undefined,
   owner: StablePaneOwner,
   worktreeId: string,
   connectionId: string | null | undefined
-): Promise<boolean> {
-  if (!store) {
+): boolean {
+  if (!runtime) {
     return false
   }
-  return store.runDurableMutation(() => {
-    const paneKey = makePaneKey(owner.tabId, owner.leafId)
-    const hostId = connectionId ? toSshExecutionHostId(connectionId) : undefined
-    const current = resolvePersistedStablePaneOwner(store, paneKey, worktreeId, connectionId)
-    if (!current) {
-      // A renderer removal may still be waiting for its debounced write.
-      return { value: true, persist: 'if-dirty' }
-    }
-    if (current.ptyId !== owner.ptyId || current.incarnationId !== owner.persistedIncarnationId) {
-      return { value: false, persist: false }
-    }
-    const session = cloneWorkspaceSessionState(store.getWorkspaceSession(hostId))
-    const retired = retireTerminalSurfaceFromPersistence(session, {
+  const incarnationId = owner.persistedIncarnationId ?? owner.incarnationId
+  return (
+    runtime.unbindAbsentTerminal({
       worktreeId,
-      parentTabId: owner.tabId,
+      connectionId,
+      tabId: owner.tabId,
       leafId: owner.leafId,
       ptyId: owner.ptyId,
-      ...(current.incarnationId ? { incarnationId: current.incarnationId } : {})
-    })
-    if (retired === session) {
-      return { value: false, persist: false }
-    }
-    store.setWorkspaceSession(retired, hostId)
-    const staged = cloneWorkspaceSessionState(store.getWorkspaceSession(hostId))
-    return {
-      value: true,
-      rollback: () => {
-        const current = store.getWorkspaceSession(hostId)
-        const rolledBack = rollbackWorkspaceSessionAfterFailedAsyncWrite(session, staged, current)
-        if (rolledBack !== current) {
-          store.setWorkspaceSession(rolledBack, hostId)
-        }
-      }
-    }
-  })
+      ...(incarnationId ? { incarnationId } : {})
+    }) !== 'replaced'
+  )
 }
 
 export type StablePaneSpawnContext = {
@@ -267,7 +241,7 @@ export async function attachStablePaneOwner(
     ptyOwnership.delete(owner.ptyId)
     if (
       args.worktreeId &&
-      !(await retirePersistedStablePaneOwner(args.store, owner, args.worktreeId, args.connectionId))
+      !unbindAbsentStablePaneOwner(runtime, owner, args.worktreeId, args.connectionId)
     ) {
       throw new Error('terminal_pane_owner_changed')
     }

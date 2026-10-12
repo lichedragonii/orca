@@ -303,7 +303,6 @@ export async function buildRuntimePtySpawnOptions(
     ? reservePaneSpawn(ctx.paneSpawnReservationKey)
     : null
   ctx.stablePaneOwner = null
-  ctx.stablePaneBindingPersisted = false
   ctx.rejectedRegistrationCandidate = null
   ctx.pendingRegistrationPtyId = null
   // Why hoisted to the reply scope: main reconciles the provider sequence

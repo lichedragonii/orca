@@ -63,7 +63,7 @@ it.each(['ipc', 'runtime'])(
       ctx.result = { id: binding.ptyId, incarnationId: binding.incarnationId }
       ctx.metadataLeafId = binding.leafId
       await admitRuntimeSpawnPane(store, binding)
-      ctx.hostSessionBinding = { store, ...binding }
+      ctx.hostSessionBinding = { ...binding }
       commit = () => commitRuntimePtySpawn(ctx)
     }
     const gate = authority.pause()

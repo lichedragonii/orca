@@ -1,4 +1,3 @@
-import type { Store } from '../../../persistence'
 import type { OrcaRuntimeService } from '../../../runtime/orca-runtime'
 import type { IPtyProvider, PtySpawnResult } from '../../../providers/types'
 import {
@@ -8,7 +7,7 @@ import {
   setAdoptedPtyOwnership
 } from '../provider/ownership-state'
 import { clearProviderPtyState } from '../provider/state-cleanup'
-import { retirePersistedStablePaneOwner } from './stable-owner'
+import { unbindAbsentStablePaneOwner } from './stable-owner'
 
 export function admitPtyReattachOwnership(
   runtime: OrcaRuntimeService | undefined,
@@ -54,7 +53,6 @@ export async function discardUnpersistedPtySpawn(
 // Successful registration must not yield before the remaining spawn publication.
 export function registerPersistedPtySpawn(
   runtime: OrcaRuntimeService | undefined,
-  store: Store | undefined,
   ...args: Parameters<OrcaRuntimeService['registerPty']>
 ): Promise<never> | undefined {
   try {
@@ -68,14 +66,13 @@ export function registerPersistedPtySpawn(
       runtime?.getPtyLivenessVerdict?.(ptyId)?.status === 'exited' &&
       binding
     ) {
-      return retirePersistedStablePaneOwner(
-        store,
+      unbindAbsentStablePaneOwner(
+        runtime,
         { ...binding, ptyId, persistedIncarnationId: binding.incarnationId },
         worktreeId,
         connectionId
-      ).then(() => {
-        throw error
-      })
+      )
+      return Promise.reject(error)
     }
     throw error
   }

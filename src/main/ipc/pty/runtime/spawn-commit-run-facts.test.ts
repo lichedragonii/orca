@@ -98,32 +98,6 @@ describe('runtime spawn commit: run facts', () => {
     expect(stops.claimExit(PTY_ID, INCARNATION_ID)).toEqual([])
   })
 
-  it('records nothing for a spawn discarded because its binding save failed', async () => {
-    const facts = new TerminalRunFactsRegister()
-    const stops = new TerminalIntentionalStops()
-    stops.mark(PTY_ID, 'reversible', null)(true)
-    const persistPtyBinding = vi.fn().mockRejectedValue(new Error('disk full'))
-
-    await expect(
-      commit({}, facts, stops, (ctx) => {
-        ctx.provider = { ...ctx.provider, shutdown: vi.fn().mockResolvedValue(undefined) }
-        ctx.hostSessionBinding = {
-          // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the commit calls only persistPtyBinding on this store.
-          store: { persistPtyBinding } as unknown as NonNullable<
-            typeof ctx.hostSessionBinding
-          >['store'],
-          worktreeId: 'wt-1',
-          tabId: 'tab-1',
-          leafId: 'leaf-1'
-        }
-      })
-    ).rejects.toThrow()
-
-    expect(persistPtyBinding).toHaveBeenCalledOnce()
-    expect(facts.read(PTY_ID, INCARNATION_ID).freshSpawn).toBe(false)
-    expect(stops.claimExit(PTY_ID, INCARNATION_ID)).toEqual(['reversible'])
-  })
-
   it.each([
     { spawn: 'new process', result: {} },
     { spawn: 'adoption', result: { agentSessionEnsure: ADOPTED } }

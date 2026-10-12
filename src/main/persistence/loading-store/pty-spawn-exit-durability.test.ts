@@ -72,7 +72,7 @@ it.each(
       ctx.result = { id: binding.ptyId, incarnationId: binding.incarnationId }
       ctx.stablePaneOwner = owner
       await admitRuntimeSpawnPane(store, binding, connectionId)
-      ctx.hostSessionBinding = { store, ...binding }
+      ctx.hostSessionBinding = { ...binding }
       ctx.metadataLeafId = binding.leafId
       commit = () => commitRuntimePtySpawn(ctx)
     } else {
@@ -146,7 +146,7 @@ it.each(['replacement-pty', binding.ptyId])(
     })
     await gate.started.promise
     const registration = expect(
-      registerPersistedPtySpawn(runtime, store, binding.ptyId, binding.worktreeId, null, binding)
+      registerPersistedPtySpawn(runtime, binding.ptyId, binding.worktreeId, null, binding)
     ).rejects.toThrow('agent_session_exited_during_start')
     gate.finish.resolve()
     await Promise.all([replacement, registration])
@@ -165,7 +165,7 @@ it('retains the binding when loss of contact supplies no process-exit proof', as
   await store.persistPtyBinding(binding)
   await runtime.onPtyExit(binding.ptyId, -1, binding.incarnationId)
   expect(() =>
-    registerPersistedPtySpawn(runtime, store, binding.ptyId, binding.worktreeId, null, binding)
+    registerPersistedPtySpawn(runtime, binding.ptyId, binding.worktreeId, null, binding)
   ).toThrow('agent_session_exited_during_start')
   expect(
     readState().workspaceSession.terminalLayoutsByTabId[binding.tabId].ptyIdsByLeafId[
@@ -184,7 +184,6 @@ it('does not settle rejected registration until its exit cleanup reaches SQLite'
   let rejected = false
   const cleanup = registerPersistedPtySpawn(
     runtime,
-    store,
     binding.ptyId,
     binding.worktreeId,
     null,
@@ -219,6 +218,6 @@ it('keeps successful registration synchronous through the remaining spawn public
   const runtime = new OrcaRuntimeService(store)
   await store.persistPtyBinding(binding)
   expect(
-    registerPersistedPtySpawn(runtime, store, binding.ptyId, binding.worktreeId, null, binding)
+    registerPersistedPtySpawn(runtime, binding.ptyId, binding.worktreeId, null, binding)
   ).toBeUndefined()
 })

@@ -71,7 +71,7 @@ describe.each(['ipc', 'runtime'])('%s failed reattach routing', (controller) => 
         ctx.result = result
         ctx.metadataLeafId = binding.leafId
         await admitRuntimeSpawnPane(store, binding, connectionId)
-        ctx.hostSessionBinding = { store, ...binding }
+        ctx.hostSessionBinding = { ...binding }
         shutdown = vi.spyOn(ctx.provider, 'shutdown')
         commit = () => commitRuntimePtySpawn(ctx)
       }

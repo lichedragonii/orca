@@ -40,15 +40,13 @@ export type RuntimePtySpawnState = {
   codexSelectionTarget: CodexAccountSelectionTarget
   launchCommand: string | undefined
   claudeAuth: ClaudeRuntimeAuthPreparation | null
-  shouldPersistHostSessionBinding: boolean
+  /** The pane the runtime admitted for this spawn; the runtime binds it once the spawn returns. */
   hostSessionBinding:
     | {
-        store: NonNullable<PtyRuntimeControllerDeps['store']>
         worktreeId: string
         tabId: string
         leafId: string
         expectedSourceBinding?: PtyBindingSourceExpectation
-        placement?: TerminalPanePlacement
       }
     | undefined
   env: Record<string, string> | undefined
@@ -72,7 +70,6 @@ export type RuntimePtySpawnState = {
     agentSessionEnsure?: unknown
   }
   stablePaneOwner: StablePaneOwner | null
-  stablePaneBindingPersisted: boolean
   rejectedRegistrationCandidate: PtySpawnResult | null
   pendingRegistrationPtyId: string | null
   reconciledSnapshotSeq: number | null
@@ -109,7 +106,8 @@ export type RuntimePtySpawnArgs = {
   isNewSession?: boolean
   /** No renderer view exists at spawn; main owns delivery and query replies until one mounts. */
   initiallyHidden?: boolean
-  persistHostSessionBinding?: boolean
+  /** The runtime admitted this spawn's pane (`tabId`/`leafId`) in its layout before spawning. */
+  runtimeAdmittedPane?: boolean
   expectedSourceBinding?: PtyBindingSourceExpectation
   placement?: TerminalPanePlacement
   terminalKittyKeyboardProtocol?: boolean
@@ -162,7 +160,6 @@ export function createRuntimePtySpawnState(
     codexSelectionTarget: { runtime: 'host' },
     launchCommand: undefined,
     claudeAuth: null,
-    shouldPersistHostSessionBinding: false,
     hostSessionBinding: undefined,
     env: undefined,
     requestedAgentTeamsPath: undefined,
@@ -182,7 +179,6 @@ export function createRuntimePtySpawnState(
     finishTerminalInstall: () => {},
     result: { id: '' },
     stablePaneOwner: null,
-    stablePaneBindingPersisted: false,
     rejectedRegistrationCandidate: null,
     pendingRegistrationPtyId: null,
     reconciledSnapshotSeq: null,

@@ -38,7 +38,7 @@ export type { IpcMainEvent } from 'electron'
 // exits silently when its startup cursor-position query goes unanswered.
 export const BACKGROUND_TERMINAL_SPAWN_FLAGS = {
   initiallyHidden: true,
-  persistHostSessionBinding: true
+  runtimeAdmittedPane: true
 } as const
 
 /** Caller-scoped spawn fields: abort when the caller disconnects; never wake a slept worktree;

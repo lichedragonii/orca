@@ -75,7 +75,8 @@ export type RuntimePtyController = {
     isNewSession?: boolean
     /** No renderer view exists at spawn; main owns delivery and query replies until one mounts. */
     initiallyHidden?: boolean
-    persistHostSessionBinding?: boolean
+    /** The runtime admitted this spawn's pane (`tabId`/`leafId`) in its layout before spawning. */
+    runtimeAdmittedPane?: boolean
     expectedSourceBinding?: PtyBindingSourceExpectation
     placement?: TerminalPanePlacement
     terminalKittyKeyboardProtocol?: boolean

@@ -70,7 +70,7 @@ export class OrcaRuntimeWithSplitPtyBackedTerminal extends OrcaRuntimeWithSplitT
       preAllocatedHandle,
       tabId: parentTabId,
       leafId,
-      persistHostSessionBinding: true,
+      runtimeAdmittedPane: true,
       placement: runtimeSplitPlacement(parsedPaneKey.leafId, direction),
       ...(sourceAuthority.persisted
         ? {
@@ -91,7 +91,7 @@ export class OrcaRuntimeWithSplitPtyBackedTerminal extends OrcaRuntimeWithSplitT
           }
         : {})
     }
-    const result = await spawnInAdmittedPane(this.store, this.ptyController, splitArgs)
+    const result = await spawnInAdmittedPane(this.workspaceLayouts, this.ptyController, splitArgs)
     this.registerPreAllocatedHandleForPty(result.id, preAllocatedHandle)
     if (result.wslDistro) {
       this.preparePtyExecutionContext(result.id, result.wslDistro)
@@ -183,7 +183,7 @@ export class OrcaRuntimeWithSplitPtyBackedTerminal extends OrcaRuntimeWithSplitT
       } catch {
         // Best-effort cleanup; preserve the original split authority error.
       }
-      await withdrawRuntimePane(this.store, splitArgs)
+      withdrawRuntimePane(this.workspaceLayouts, splitArgs)
       throw error
     }
     const committedSourceAuthority = sourceAuthority.persisted

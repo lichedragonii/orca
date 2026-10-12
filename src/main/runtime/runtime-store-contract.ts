@@ -51,6 +51,7 @@ export type RuntimeStore = {
   onWorkspaceSessionWritten?: Store['onWorkspaceSessionWritten']
   setWorkspaceSession?: Store['setWorkspaceSession']
   getRemoteLayoutSnapshots?: Store['getRemoteLayoutSnapshots']
+  getSshTarget?: Store['getSshTarget']
   runDurableMutation?: Store['runDurableMutation']
   flushOrThrow?: Store['flushOrThrow']
   flushPendingOrThrowAsync?: Store['flushPendingOrThrowAsync']

@@ -26,6 +26,7 @@ import { MacosLoginSessionDeathWatch } from './macos-login-session-death-watch'
 import { readCurrentProcessMacSystemResolverHealth } from '../network/macos-system-resolver-health'
 import { readCurrentDaemonReadyIdentity } from './daemon-ready-identity'
 import { publishDaemonPidFile } from './daemon-spawner'
+import { initializePtyProcessCeiling } from './pty-process-ceiling'
 import { isNativePtyException } from './daemon-native-pty-exception'
 import { startDaemonScopeDeathWatch } from './daemon-scope-death-watch'
 import { isWindowsProcessTableAvailable } from '../windows/windows-process-table'
@@ -270,6 +271,7 @@ async function main(): Promise<void> {
         })
       : null
 
+  const processCeiling = initializePtyProcessCeiling(launchNonce ?? '')
   daemon = await startDaemon({
     socketPath,
     tokenPath,
@@ -291,6 +293,7 @@ async function main(): Promise<void> {
               // where the daemon's own cgroup landed, verified from inside the process that
               // matters. See daemon-cgroup-scope.ts.
               cgroupUnit: detectOwnCgroupScopeUnit(),
+              processCeiling,
               launchNonce
             })
         }

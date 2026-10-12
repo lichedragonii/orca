@@ -18,11 +18,12 @@ import {
   parseProjectGroupIpcArgs
 } from './repo-ipc-arg-schemas'
 import { visibleFolderWorkspaces } from '../../ssh/orcad-retained-source'
+import { folderWorkspaceKey } from '../../../shared/workspace-scope'
 
 export function registerFolderWorkspaceHandlers(
   mainWindow: BrowserWindow,
   store: Store,
-  runtime: Pick<OrcaRuntimeService, 'deleteFolderWorkspace'>
+  runtime: Pick<OrcaRuntimeService, 'deleteFolderWorkspace' | 'addCatalogWorkspaces'>
 ): void {
   ipcMain.handle('folderWorkspaces:list', (): FolderWorkspace[] => visibleFolderWorkspaces(store))
 
@@ -64,6 +65,7 @@ export function registerFolderWorkspaceHandlers(
         ...args,
         creatorProvenance: { kind: 'host' }
       })
+      runtime.addCatalogWorkspaces([folderWorkspaceKey(workspace.id)])
       notifyReposChanged(mainWindow)
       return workspace
     }

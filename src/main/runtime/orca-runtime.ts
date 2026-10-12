@@ -31,6 +31,8 @@ import { createReferenceAgentIndex, referenceConnectionHosts } from './runtime-r
 import type { RuntimeReferenceFindParams } from '../../shared/runtime-reference-contracts'
 import { getRepoExecutionHostId, toSshExecutionHostId } from '../../shared/execution-host'
 import { UNVERIFIED_PROCESS_EXIT_CODE } from '../../shared/terminal-exit-cause'
+import { FLOATING_TERMINAL_WORKTREE_ID } from '../../shared/constants'
+import { folderWorkspaceKey } from '../../shared/workspace-scope'
 
 function holderStore(store: RuntimeStore | null): (HolderStore & RuntimeStore) | null {
   const { getWorkspaceSession, getWorkspaceSessionHostIds, setWorkspaceSession } = store ?? {}
@@ -125,6 +127,12 @@ class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
     const store = holderStore(this.store)
     // Before any RPC server starts: every caller of this runtime reads the loaded holder.
     this.layoutHolder.load()
+    this.addCatalogWorkspaces([
+      FLOATING_TERMINAL_WORKTREE_ID,
+      ...(this.store?.getFolderWorkspaces?.() ?? []).map((folder) => folderWorkspaceKey(folder.id))
+    ])
+    this.resolvedWorktrees.onResolved = (snapshot) =>
+      this.addCatalogWorkspaces(snapshot.worktrees.map((worktree) => worktree.id))
     if (store?.onWorkspaceSessionWritten) {
       reloadHolderOnExternalWrites(this.layoutHolder, {
         ...store,
@@ -179,6 +187,13 @@ class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
   }
 
   protected readonly paneTitleFacts = new PaneTitleFacts(this.layoutHolder)
+
+  /** Local catalog workspaces are published, empty until they have tabs; others' hosts publish theirs. */
+  addCatalogWorkspaces(keys: readonly string[]): void {
+    this.layoutHolder.addCatalogWorkspaces(
+      keys.filter((key) => this.layoutHolder.holds(this.layoutHolder.hostIdOf(key) ?? 'local'))
+    )
+  }
 
   /** Attach found no process for this pane: never proof that it exited, so the pane stays, unbound. */
   unbindAbsentTerminal(pane: {

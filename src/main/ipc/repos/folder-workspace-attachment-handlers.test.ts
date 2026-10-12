@@ -57,6 +57,7 @@ describe('folder workspace attachment desktop IPC', () => {
     })
     const workspace = store.createFolderWorkspace({ projectGroupId: group.id })
     registerFolderWorkspaceHandlers(new BrowserWindow(), store, {
+      addCatalogWorkspaces: vi.fn(),
       deleteFolderWorkspace: vi.fn(async () => ({ deleted: true }))
     })
     expect(
@@ -87,6 +88,7 @@ describe('folder workspace attachment desktop IPC', () => {
       createdFrom: 'folder-scan'
     })
     registerFolderWorkspaceHandlers(new BrowserWindow(), store, {
+      addCatalogWorkspaces: vi.fn(),
       deleteFolderWorkspace: vi.fn(async () => ({ deleted: true }))
     })
     expect(
@@ -106,6 +108,7 @@ describe('folder workspace attachment desktop IPC', () => {
     const base = [linkedItems[0]]
     const workspace = store.createFolderWorkspace({ projectGroupId: group.id, linkedItems: base })
     registerFolderWorkspaceHandlers(new BrowserWindow(), store, {
+      addCatalogWorkspaces: vi.fn(),
       deleteFolderWorkspace: vi.fn(async () => ({ deleted: true }))
     })
     await invoke('folderWorkspaces:update', {

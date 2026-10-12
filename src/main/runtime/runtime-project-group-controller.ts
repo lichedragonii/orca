@@ -20,6 +20,8 @@ type RuntimeProjectGroupDependencies = {
   getStore: () => RuntimeStore | null
   resolveRepo: (selector: string) => Promise<Repo>
   notifyReposChanged: () => void
+  /** A folder workspace joined the catalog: the layout holder publishes it. */
+  addCatalogWorkspace: (key: string) => void
   resolveFolderConnectionId: (workspace: FolderWorkspace) => string | null
   teardownFolderWorkspacePtys: (worktreeId: string, connectionId: string | null) => Promise<void>
   cleanupRemovedFolderWorkspaceState: (worktreeId: string) => void
@@ -164,6 +166,7 @@ export class RuntimeProjectGroupController {
       ...input,
       creatorProvenance: input.creatorProvenance ?? { kind: 'host' }
     })
+    this.deps.addCatalogWorkspace(folderWorkspaceKey(workspace.id))
     this.deps.notifyReposChanged()
     return workspace
   }

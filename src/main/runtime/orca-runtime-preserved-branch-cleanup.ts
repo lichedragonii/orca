@@ -263,6 +263,7 @@ export class OrcaRuntimeWithPreservedBranchCleanup extends OrcaRuntimeWithTermin
     getStore: () => this.store,
     resolveRepo: (selector) => this.resolveRepoSelector(selector),
     notifyReposChanged: () => this.notifyReposChanged(),
+    addCatalogWorkspace: (key) => this.addCatalogWorkspaces([key]),
     resolveFolderConnectionId: (workspace) => this.resolveFolderWorkspaceConnectionId(workspace),
     teardownFolderWorkspacePtys: (worktreeId, connectionId) =>
       teardownFolderWorkspacePtys(

@@ -49,6 +49,7 @@ function createController() {
       throw new Error('unused')
     },
     notifyReposChanged,
+    addCatalogWorkspace: vi.fn(),
     resolveFolderConnectionId: () => null,
     teardownFolderWorkspacePtys: async () => undefined,
     cleanupRemovedFolderWorkspaceState: () => undefined

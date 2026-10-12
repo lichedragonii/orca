@@ -21,6 +21,7 @@ function createController(
       throw new Error('unused')
     },
     notifyReposChanged,
+    addCatalogWorkspace: vi.fn(),
     resolveFolderConnectionId,
     teardownFolderWorkspacePtys,
     cleanupRemovedFolderWorkspaceState

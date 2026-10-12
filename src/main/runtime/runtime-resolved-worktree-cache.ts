@@ -12,6 +12,8 @@ type ResolvedInFlight = {
   promise: Promise<ResolvedWorktreeSnapshot>
 }
 export class RuntimeResolvedWorktreeCache {
+  /** Hears every snapshot a scan lands; the layout holder publishes its worktrees. */
+  onResolved: ((snapshot: ResolvedWorktreeSnapshot) => void) | null = null
   private resolved: ResolvedCache | null = null
   private resolvedInFlight: ResolvedInFlight | null = null
   private resolvedGeneration = 0
@@ -57,6 +59,7 @@ export class RuntimeResolvedWorktreeCache {
         // Why stamped on completion, not entry: a compute that spent longer than the TTL would
         // otherwise publish an already-expired entry, so the next poll recomputes the same slow path.
         this.resolved = { ...result, inventoryRevision, expiresAt: Date.now() + ttlMs }
+        this.onResolved?.(result)
       }
       return result
     } finally {

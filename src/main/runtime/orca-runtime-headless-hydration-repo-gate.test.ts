@@ -58,6 +58,8 @@ describe('headless mobile session hydration repo gate', () => {
       getRepo: () => null,
       getRepos
     } as never)
+    // Startup seeds the layout catalog from the inventory once; the poll must not read it.
+    getRepos.mockClear()
 
     // Floating terminals carry no `repoId::path` identity, and this hydrate runs
     // on a hot poll path — it must not enumerate repos.

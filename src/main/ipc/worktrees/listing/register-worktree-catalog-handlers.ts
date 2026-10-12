@@ -68,7 +68,7 @@ function publishedToLayoutCatalog<T extends Worktree>(
   context: WorktreeIpcContext,
   worktrees: T[]
 ): T[] {
-  context.runtime.addCatalogWorkspaces(worktrees.map((worktree) => worktree.id))
+  context.runtime.addCatalogWorktrees(worktrees)
   return worktrees
 }
 

@@ -125,7 +125,7 @@ export function unbindAbsentStablePaneOwner(
   connectionId: string | null | undefined
 ): boolean {
   if (!runtime) {
-    return false
+    return true
   }
   const incarnationId = owner.persistedIncarnationId ?? owner.incarnationId
   return (

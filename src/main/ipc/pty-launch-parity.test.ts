@@ -253,9 +253,13 @@ describe('host lane: producer call -> runtime controller -> provider', () => {
     const spawned = recordOf(lanes.provider.mock.calls.at(-1)?.[0])
     expect(recordOf(spawned.env).ORCA_PANE_KEY).toBe(spawned.paneKey)
     expect(trackMock.mock.calls).toEqual(c.telemetry ? [['agent_started', c.telemetry]] : [])
-    expect(lanes.persistPtyBinding.mock.calls[0]?.[0]).toMatchObject({
-      placement: { kind: 'new-tab' }
-    })
+    // The runtime's holder admitted a new tab for the launch and bound it to the spawned terminal.
+    const saved = lanes.session()
+    const [tab, ...others] = saved.tabsByWorktree[launchWorkspaceId(c.workspace)] ?? []
+    expect(others).toEqual([])
+    expect(Object.values(saved.terminalLayoutsByTabId[tab!.id]?.ptyIdsByLeafId ?? {})).toEqual([
+      tab!.ptyId
+    ])
     const phone = await lanes.runtime.listMobileSessionTabs(`id:${launchWorkspaceId(c.workspace)}`)
     expect(pick({ ...phone.tabs[0] }, ['title', 'launchAgent', 'isActive'])).toEqual(c.phone)
   })

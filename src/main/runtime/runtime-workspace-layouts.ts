@@ -64,11 +64,8 @@ export class RuntimeWorkspaceLayouts {
     }
   }
 
-  subscribe(
-    listener: Parameters<RuntimeWorkspaceLayoutPublication['subscribe']>[0]
-  ): ReturnType<RuntimeWorkspaceLayoutPublication['subscribe']> {
-    return this.publication.subscribe(listener)
-  }
+  readonly subscribe: RuntimeWorkspaceLayoutPublication['subscribe'] = (listener) =>
+    this.publication.subscribe(listener)
 
   published(key: string): PublishedWorkspaceLayout | undefined {
     return this.publication.get(key)
@@ -110,12 +107,20 @@ export class RuntimeWorkspaceLayouts {
     return result.ok ? this.commit(hostId, result, DURABLE_COMMANDS.has(command.type)) : result
   }
 
-  transition(hostId: ExecutionHostId, transition: LayoutTransition): HolderApplied {
+  /** `beside`: the view and facts a producer rebuilt with the whole partition (orphan adoption). */
+  transition(
+    hostId: ExecutionHostId,
+    transition: LayoutTransition,
+    beside?: Omit<LoadedWorkspaceLayout, 'layout'>
+  ): HolderApplied {
     const loaded = this.partition(hostId)
     if (!loaded) {
       return { ok: false, code: 'workspace_not_found' }
     }
     const result = applyLayoutTransition(loaded.layout, transition)
+    if (result.ok && beside) {
+      this.partitions.set(hostId, { ...beside, layout: loaded.layout })
+    }
     return result.ok ? this.commit(hostId, result, true) : result
   }
 

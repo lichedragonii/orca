@@ -14,6 +14,8 @@ import {
 } from '../../shared/launch-parity-window-request.test-fixture'
 import { isHiddenRendererPty } from './pty-hidden-delivery-gate'
 import { HOST_TAB_ID } from './pty-launch-parity-host.test-cases'
+import { getDefaultWorkspaceSession } from '../../shared/constants'
+import type { WorkspaceSessionState } from '../../shared/workspace-session-state-types'
 
 const WINDOWS_ENV = {
   COMSPEC: 'C:\\Windows\\system32\\cmd.exe',
@@ -131,6 +133,8 @@ export type ParityLanes = {
   /** The local daemon provider's spawn mock. */
   provider: Mock
   persistPtyBinding: Mock
+  /** The host partition as the runtime's holder last saved it. */
+  session: () => WorkspaceSessionState
   reveal: Mock
   spawnWindow: (request: Record<string, unknown>) => Promise<unknown>
 }
@@ -146,6 +150,7 @@ export function startParityLanes(
 ): ParityLanes {
   const settings = parityMainSettings(args.settings)
   const persistPtyBinding = vi.fn(async () => true)
+  let session = getDefaultWorkspaceSession()
   const { repo, folderWorkspace } = launchScope(args.workspace)
   const store = {
     getSettings: () => settings,
@@ -162,7 +167,10 @@ export function startParityLanes(
     getRepos: () => (repo ? [repo] : []),
     getAllWorktreeMeta: () => ({}),
     getWorktreeMeta: () => undefined,
-    getWorkspaceSession: () => ({ tabsByWorktree: {}, terminalLayoutsByTabId: {} }),
+    getWorkspaceSession: () => session,
+    setWorkspaceSession: (next: WorkspaceSessionState) => {
+      session = next
+    },
     getFolderWorkspace: () => folderWorkspace ?? undefined,
     getFolderWorkspaces: () => (folderWorkspace ? [folderWorkspace] : []),
     getProjectGroups: () => [{ id: 'pg-1', name: 'group', parentPath: null, connectionId: null }],
@@ -212,6 +220,7 @@ export function startParityLanes(
     runtime,
     provider,
     persistPtyBinding,
+    session: () => session,
     reveal,
     spawnWindow: async (request) => suite.handlers.get('pty:spawn')!(null, request)
   }

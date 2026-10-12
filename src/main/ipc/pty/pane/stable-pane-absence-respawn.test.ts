@@ -153,42 +153,34 @@ describe('stable pane adoption after the owning host reports the PTY absent', ()
   // which can delete the parent tab and its layout — never runs. "Reconnect lost every tab" is the
   // regression this subsystem was reverted for twice, so the composition needs its own coverage.
   describe('with persistence actually reached', () => {
-    it('retires only the absent leaf and leaves the tab and its sibling bound', async () => {
-      const { store, read } = sessionStore([LEAF, SIBLING_LEAF])
-      const { run, spawn } = spawnAfterAttachRejection(new SessionNotFoundError(OWNER.ptyId), {
-        store,
-        worktreeId: WORKTREE
-      })
+    // Attach absence is never proof of exit: the runtime's holder keeps the pane, unbound.
+    it('asks the runtime to unbind only the absent pane', async () => {
+      const spawn = vi
+        .fn()
+        .mockRejectedValueOnce(new SessionNotFoundError(OWNER.ptyId))
+        .mockResolvedValueOnce({ id: 'ssh:conn-1@@pty-2', isReattach: false })
+      const runtime = { onPtyExit: vi.fn(), unbindAbsentTerminal: vi.fn(() => 'gone' as const) }
 
-      const result = await run()
+      const result = await spawnForStablePane({
+        // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: Absence handling calls only these two runtime methods.
+        runtime: runtime as never,
+        provider: { spawn } as unknown as IPtyProvider,
+        spawnOptions: { cols: 80, rows: 24 },
+        owner: OWNER,
+        worktreeId: WORKTREE,
+        connectionId: 'conn-1',
+        resolveOwner: () => null
+      })
 
       expect(spawn).toHaveBeenCalledTimes(2)
       expect(result.owner).toBeNull()
-      const session = read()
-      expect(session.tabsByWorktree[WORKTREE]?.map((tab) => tab.id)).toEqual(['tab-1'])
-      const layout = session.terminalLayoutsByTabId['tab-1']
-      expect(layout).toBeDefined()
-      expect(layout?.ptyIdsByLeafId?.[SIBLING_LEAF]).toBe('ssh:conn-1@@pty-2')
-      expect(layout?.ptyIdsByLeafId?.[LEAF]).toBeUndefined()
-    })
-
-    // Pins current behaviour rather than blessing it: retiring the LAST leaf drops the tab from
-    // persistence, and the fallback returns owner=null so main does not re-persist a binding — tab
-    // survival then rests entirely on the renderer. If that ever regresses, this is the tripwire.
-    it('drops the tab when the absent leaf was the only one, leaving re-persistence to the renderer', async () => {
-      const { store, read } = sessionStore([LEAF])
-      const { run, spawn } = spawnAfterAttachRejection(new SessionNotFoundError(OWNER.ptyId), {
-        store,
-        worktreeId: WORKTREE
+      expect(runtime.unbindAbsentTerminal).toHaveBeenCalledExactlyOnceWith({
+        worktreeId: WORKTREE,
+        connectionId: 'conn-1',
+        tabId: 'tab-1',
+        leafId: LEAF,
+        ptyId: OWNER.ptyId
       })
-
-      const result = await run()
-
-      expect(spawn).toHaveBeenCalledTimes(2)
-      expect(result.owner).toBeNull()
-      const session = read()
-      expect(session.tabsByWorktree[WORKTREE]).toEqual([])
-      expect(session.terminalLayoutsByTabId['tab-1']).toBeUndefined()
     })
 
     it('leaves persistence untouched when the failure is not positive absence', async () => {

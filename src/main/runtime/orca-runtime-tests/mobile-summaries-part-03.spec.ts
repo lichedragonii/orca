@@ -275,6 +275,8 @@ describe('OrcaRuntimeService', () => {
           stateStartedAt: now - 100
         }))
     })
+    // Startup publishes the known worktrees once; the count below is the poll's.
+    getRepo.mockClear()
     const summaries = await runtime.getWorktreePs()
 
     // Why: equal keys prove polled worktree.ps rows can share the per-request index instead of repeating path scans.
@@ -493,6 +495,8 @@ describe('OrcaRuntimeService', () => {
         }))
     })
 
+    // Startup publishes the known worktrees once; the count below is the poll's.
+    getRepo.mockClear()
     const summaries = await runtime.getWorktreePs()
 
     expect(summaries).toMatchObject({ totalCount: 2_000, truncated: true })

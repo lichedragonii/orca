@@ -82,6 +82,8 @@ describe('OrcaRuntimeService', () => {
       })
     )
     const runtime = new OrcaRuntimeService({ ...runtimeStore, getRepos } as never)
+    // Startup seeds the layout catalog from the inventory once; the poll must not read it.
+    getRepos.mockClear()
     const ptyController = {
       livePtyIds: new Set([floatingPtyId]),
       write: () => true,

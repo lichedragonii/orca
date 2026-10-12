@@ -34,7 +34,8 @@ type LaunchRaceRuntimeBase = Record<
   | 'seedHeadlessTerminal'
   | 'onPtySpawned'
   | 'onPtyExit'
-  | 'onPtyData',
+  | 'onPtyData'
+  | 'unbindAbsentTerminal',
   Mock
 >
 
@@ -93,7 +94,8 @@ export function createLaunchRaceRuntime<T extends object = Record<never, never>>
     seedHeadlessTerminal: vi.fn(),
     onPtySpawned: vi.fn(),
     onPtyExit: vi.fn(),
-    onPtyData: vi.fn()
+    onPtyData: vi.fn(),
+    unbindAbsentTerminal: vi.fn(() => 'gone')
   }
   return Object.assign(base, overrides)
 }

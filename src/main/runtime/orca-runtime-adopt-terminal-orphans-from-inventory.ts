@@ -69,13 +69,22 @@ export class OrcaRuntimeWithAdoptTerminalOrphansFromInventory extends OrcaRuntim
         getMobileSnapshots: () => this.mobileSessionTabsByWorktree.values(),
         adoptSession: (from, adopted) => {
           const hostId = this.getWorkspaceSessionHostIdForWorktree(workspace.id)
-          const { layout } = loadWorkspaceLayout(hostId, adopted, nameBasedLoadContext())
-          this.layoutHolder.transition(hostId, {
-            type: 'orphansAdopted',
-            from,
-            workspace: workspace.id,
-            adopted: layout.workspaces[workspace.id]
-          })
+          const { layout, desktopView, facts, carried } = loadWorkspaceLayout(
+            hostId,
+            adopted,
+            nameBasedLoadContext()
+          )
+          this.layoutHolder.transition(
+            hostId,
+            {
+              type: 'orphansAdopted',
+              from,
+              workspace: workspace.id,
+              adopted: layout.workspaces[workspace.id]
+            },
+            // The adoption also sets focus and the topology revision, which live beside the layout.
+            { desktopView, facts, carried }
+          )
           return this.store.getWorkspaceSession(hostId)
         },
         hydrateSession: (worktreeId) =>

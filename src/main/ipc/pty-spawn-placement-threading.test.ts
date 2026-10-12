@@ -152,7 +152,8 @@ describe('pty spawn placement threading', () => {
     }
   })
 
-  it('passes a main runtime spawn placement through the host-admitted binding', async () => {
+  // The runtime's holder placed the pane before the spawn and binds it after; this layer saves nothing.
+  it('writes no binding for a runtime-admitted spawn', async () => {
     const { store, controller } = register()
     await controller().spawn({
       cols: 80,
@@ -164,15 +165,6 @@ describe('pty spawn placement threading', () => {
       runtimeAdmittedPane: true,
       placement: SPLIT
     })
-    expect(store.persistPtyBinding).toHaveBeenCalledWith({
-      worktreeId: WORKTREE,
-      tabId: 'tab-runtime',
-      leafId: LEAF,
-      ptyId: expect.any(String),
-      incarnationId: expect.any(String),
-      mayCreate: false,
-      placement: SPLIT,
-      origin: 'spawn'
-    })
+    expect(store.persistPtyBinding).not.toHaveBeenCalled()
   })
 })

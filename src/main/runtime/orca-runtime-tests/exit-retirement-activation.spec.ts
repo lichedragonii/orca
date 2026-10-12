@@ -125,7 +125,7 @@ describe('OrcaRuntimeService', () => {
     expect(await terminalLeafIds()).toEqual([HEADLESS_LEAF_ID])
     await expect(activate(HEADLESS_SECOND_LEAF_ID, 'automatic')).rejects.toThrow('tab_not_found')
     expect(errorSpy).toHaveBeenCalledWith(
-      '[runtime] could not stage terminal retirement:',
+      '[workspace-layout] could not save the layout:',
       expect.any(Error)
     )
     errorSpy.mockRestore()

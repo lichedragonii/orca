@@ -297,11 +297,8 @@ describe('launch race parity, both spawn lanes', () => {
     }
 
     // C2 and C5e rely on this: a failed save discards the PTY, reports "unknown" and cancels registration.
-    const SAVE_BINDING_ARGS: Record<LaunchRaceLane, Record<string, unknown>> = {
-      ipc: {},
-      runtime: { runtimeAdmittedPane: true }
-    }
-    it.each(LAUNCH_RACE_LANES)(
+    // The runtime lane saves nothing here: its holder binds the pane after the spawn returns.
+    it.each(['ipc'] as const)(
       '%s lane: a failed binding save discards the PTY and reports the outcome as unknown',
       async (lane) => {
         const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -325,7 +322,7 @@ describe('launch race parity, both spawn lanes', () => {
         const lanes = registerLaunchRaceLanes({ handlers, mainWindow, runtime, store })
         forgetPtyAfterTest(ptyId)
 
-        const spawn = lanes.spawn[lane]({ ...pane.args, ...SAVE_BINDING_ARGS[lane] })
+        const spawn = lanes.spawn[lane](pane.args)
 
         await expect(spawn).rejects.toThrow('ORCA_TERMINAL_SESSION_STATE_SAVE_FAILED')
         await expect(spawn).rejects.toMatchObject({ agentSessionOperationOutcome: 'unknown' })

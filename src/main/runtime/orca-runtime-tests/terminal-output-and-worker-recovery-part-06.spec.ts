@@ -303,6 +303,8 @@ describe('OrcaRuntimeService', () => {
   })
 
   it('restores orphan pane and group topology without replacing a newer host-owned tab', async () => {
+    // Pane ids are unique in a partition; the adopted tab reuses HEADLESS_LEAF_ID.
+    const LIVE_TAB_LEAF_ID = '44444444-4444-4444-8444-444444444444'
     const session: WorkspaceSessionState = {
       ...makeWorkspaceSessionWithHeadlessTerminal({
         activeTabIdByWorktree: { [TEST_WORKTREE_ID]: 'terminal-3' },
@@ -321,7 +323,7 @@ describe('OrcaRuntimeService', () => {
           ]
         },
         terminalLayoutsByTabId: {
-          'terminal-3': makeHeadlessTerminalLayout({ [HEADLESS_LEAF_ID]: 'pty-new' })
+          'terminal-3': makeHeadlessTerminalLayout({ [LIVE_TAB_LEAF_ID]: 'pty-new' })
         }
       }),
       tabGroups: {
@@ -339,7 +341,7 @@ describe('OrcaRuntimeService', () => {
       },
       activeGroupIdByWorktree: { [TEST_WORKTREE_ID]: 'group-live' },
       terminalPtyIncarnationsByPaneKey: {
-        [`terminal-3:${HEADLESS_LEAF_ID}`]: 'inc-new'
+        [`terminal-3:${LIVE_TAB_LEAF_ID}`]: 'inc-new'
       }
     }
     const { runtimeStore, getSession } = makeRuntimeStoreWithWorkspaceSession(session)

@@ -104,7 +104,7 @@ describe('registerPtyHandlers', () => {
       { ...baseArgs, leafId: 'legacy-leaf' }
     ]) {
       await expect(spawnController.spawn(args)).rejects.toThrow(
-        'Cannot persist runtime PTY binding without worktreeId, tabId, and leafId'
+        'Cannot spawn into an admitted pane without worktreeId, tabId, and leafId'
       )
     }
     expect(spawnMock).not.toHaveBeenCalled()

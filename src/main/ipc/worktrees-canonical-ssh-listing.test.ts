@@ -66,6 +66,7 @@ function fixture(fields: Pick<Repo, 'connectionId' | 'executionHostId'>) {
   }
   const context = {
     store,
+    runtime: { addCatalogWorktrees: vi.fn() },
     detectedWorktreeCancellations: {
       begin: () => new AbortController(),
       finish: () => {},
@@ -74,7 +75,7 @@ function fixture(fields: Pick<Repo, 'connectionId' | 'executionHostId'>) {
   }
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: These handlers only use this store and request cancellation surface.
   registerDetectedWorktreeHandlers(context as never)
-  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: Catalog listing uses only the supplied store accessors.
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: Catalog listing uses only the supplied store accessors and catalog sink.
   registerWorktreeCatalogHandlers(context as never)
   // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: Known-host reading uses only the supplied store accessors.
   registerHostCatalogHandlers(context as never)

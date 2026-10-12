@@ -537,7 +537,8 @@ describe('OrcaRuntimeService', () => {
     expect(kill).toHaveBeenCalledWith('headless-right')
     expect(getSession().tabsByWorktree[TEST_WORKTREE_ID]).toEqual([])
     expect(getSession().terminalLayoutsByTabId['durable-tab']).toBeUndefined()
-    expect(flushOrThrow).toHaveBeenCalledTimes(1)
+    // Two binds, the split and the close each reach disk.
+    expect(flushOrThrow).toHaveBeenCalledTimes(4)
   })
 
   it('lists PTY-backed mobile session terminals without a renderer graph', async () => {

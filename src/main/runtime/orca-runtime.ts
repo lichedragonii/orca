@@ -30,6 +30,7 @@ import { createReferenceAgentIndex, referenceConnectionHosts } from './runtime-r
 import type { RuntimeReferenceFindParams } from '../../shared/runtime-reference-contracts'
 import {
   getRepoExecutionHostId,
+  LOCAL_EXECUTION_HOST_ID,
   toSshExecutionHostId,
   type ExecutionHostId
 } from '../../shared/execution-host'
@@ -37,6 +38,7 @@ import { UNVERIFIED_PROCESS_EXIT_CODE } from '../../shared/terminal-exit-cause'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../shared/constants'
 import { folderWorkspaceKey } from '../../shared/workspace-scope'
 import { getRepoMainWorktreeId } from '../../shared/worktree/id'
+import type { Worktree } from '../../shared/worktree/types'
 
 class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
   /** The one copy of every host partition's tab layout (PR 6). */
@@ -137,8 +139,7 @@ class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
       ...(this.store?.getRepos?.() ?? []).map((repo) => getRepoMainWorktreeId(repo)),
       ...Object.keys(this.store?.getAllWorktreeMetaForHost?.('local') ?? {})
     ])
-    this.resolvedWorktrees.onResolved = (snapshot) =>
-      this.addCatalogWorkspaces(snapshot.worktrees.map((worktree) => worktree.id))
+    this.resolvedWorktrees.onResolved = (snapshot) => this.addCatalogWorktrees(snapshot.worktrees)
     if (store) {
       const onWritten = this.store?.onWorkspaceSessionWritten
       reloadHolderOnExternalWrites(this.layoutHolder, {
@@ -212,10 +213,21 @@ class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
   /** Local catalog workspaces are published, empty until they have tabs; others' hosts publish theirs. */
   addCatalogWorkspaces(keys: readonly string[]): void {
     this.layoutHolder.addCatalogWorkspaces(
-      keys.filter((key) => {
-        const home = this.layoutHolder.hostIdOf(key)
-        return home !== null && this.layoutHolder.holds(home)
-      })
+      keys.filter((key) => this.layoutHolder.hostIdOf(key) === LOCAL_EXECUTION_HOST_ID)
+    )
+  }
+
+  /** Listed worktrees join by their repo's host: a scan must not look up each worktree's host. */
+  addCatalogWorktrees(worktrees: readonly Pick<Worktree, 'id' | 'repoId'>[]): void {
+    const localRepoIds = new Set(
+      (this.store?.getRepos?.() ?? [])
+        .filter((repo) => getRepoExecutionHostId(repo) === LOCAL_EXECUTION_HOST_ID)
+        .map((repo) => repo.id)
+    )
+    this.layoutHolder.addCatalogWorkspaces(
+      worktrees
+        .filter((worktree) => localRepoIds.has(worktree.repoId))
+        .map((worktree) => worktree.id)
     )
   }
 

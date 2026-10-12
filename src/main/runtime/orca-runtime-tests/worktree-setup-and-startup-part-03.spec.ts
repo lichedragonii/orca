@@ -23,8 +23,9 @@ import {
 
 describe('OrcaRuntimeService', () => {
   it('does not surface the new workspace when a background create splits its setup pane', async () => {
+    const fixture = makeRuntimeStoreWithWorkspaceSession(getDefaultWorkspaceSession())
     const runtimeStore = {
-      ...makeRuntimeStoreWithWorkspaceSession(getDefaultWorkspaceSession()).runtimeStore,
+      ...fixture.runtimeStore,
       getSettings: () => ({
         ...store.getSettings(),
         setupScriptLaunchMode: 'split-horizontal' as const
@@ -91,23 +92,25 @@ describe('OrcaRuntimeService', () => {
     expect(activateWorktree).not.toHaveBeenCalled()
     await vi.waitFor(() => expect(spawn).toHaveBeenCalledTimes(2))
     const mainEnv = (spawn.mock.calls[0]![0] as { env?: Record<string, string> }).env ?? {}
-    await vi.waitFor(() =>
-      expect(revealTerminalSession).toHaveBeenLastCalledWith(
-        result.worktree.id,
-        expect.objectContaining({
-          ptyId: 'pty-bg-split-setup',
-          tabId: mainEnv.ORCA_TAB_ID,
-          activate: false,
-          surfaceOwner: false,
-          splitDirection: 'horizontal'
-        })
-      )
+    const mainLeafId = mainEnv.ORCA_PANE_KEY!.slice(`${mainEnv.ORCA_TAB_ID!}:`.length)
+    // The source pane is saved before the split, so the window gets the split from the saved layout.
+    const layout = fixture.getSession().terminalLayoutsByTabId[mainEnv.ORCA_TAB_ID!]
+    expect(layout?.root).toMatchObject({
+      type: 'split',
+      direction: 'horizontal',
+      first: { type: 'leaf', leafId: mainLeafId }
+    })
+    expect(Object.values(layout?.ptyIdsByLeafId ?? {})).toContain('pty-bg-split-setup')
+    expect(revealTerminalSession).not.toHaveBeenCalledWith(
+      result.worktree.id,
+      expect.objectContaining({ ptyId: 'pty-bg-split-setup' })
     )
   })
 
   it('still surfaces the new workspace when an activating create splits its setup pane', async () => {
+    const fixture = makeRuntimeStoreWithWorkspaceSession(getDefaultWorkspaceSession())
     const runtimeStore = {
-      ...makeRuntimeStoreWithWorkspaceSession(getDefaultWorkspaceSession()).runtimeStore,
+      ...fixture.runtimeStore,
       getSettings: () => ({
         ...store.getSettings(),
         setupScriptLaunchMode: 'split-horizontal' as const
@@ -175,19 +178,25 @@ describe('OrcaRuntimeService', () => {
 
     // No-regression guard: an explicit --activate still reveals the workspace.
     await vi.waitFor(() => expect(spawn).toHaveBeenCalledTimes(2))
-    await vi.waitFor(() =>
-      expect(revealTerminalSession).toHaveBeenLastCalledWith(
-        result.worktree.id,
-        expect.objectContaining({
-          ptyId: 'pty-active-split-setup',
-          splitDirection: 'horizontal'
-        })
-      )
+    const mainEnv = (spawn.mock.calls[0]![0] as { env?: Record<string, string> }).env ?? {}
+    const mainLeafId = mainEnv.ORCA_PANE_KEY!.slice(`${mainEnv.ORCA_TAB_ID!}:`.length)
+    // The source pane is saved before the split, so the window gets the split from the saved layout.
+    const layout = fixture.getSession().terminalLayoutsByTabId[mainEnv.ORCA_TAB_ID!]
+    expect(layout?.root).toMatchObject({
+      type: 'split',
+      direction: 'horizontal',
+      first: { type: 'leaf', leafId: mainLeafId }
+    })
+    expect(Object.values(layout?.ptyIdsByLeafId ?? {})).toContain('pty-active-split-setup')
+    expect(revealTerminalSession).not.toHaveBeenCalledWith(
+      result.worktree.id,
+      expect.objectContaining({ ptyId: 'pty-active-split-setup' })
     )
-    const splitRevealPayload = revealTerminalSession.mock.lastCall?.[1] as
-      | { surfaceOwner?: boolean }
-      | undefined
-    expect(splitRevealPayload).not.toHaveProperty('surfaceOwner')
+    expect(revealTerminalSession).toHaveBeenCalledWith(
+      result.worktree.id,
+      expect.objectContaining({ ptyId: 'pty-active-split-main' })
+    )
+    expect(revealTerminalSession.mock.lastCall?.[1]).not.toHaveProperty('surfaceOwner')
   })
 
   it('does not warn when setup is explicitly skipped for CLI-created worktrees', async () => {

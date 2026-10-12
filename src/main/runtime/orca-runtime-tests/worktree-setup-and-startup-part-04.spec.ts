@@ -237,8 +237,9 @@ describe('OrcaRuntimeService', () => {
 
   it('honors split setup placement for opted-in local startup-draft worktrees', async () => {
     const metaById: Record<string, WorktreeMeta> = {}
+    const fixture = makeRuntimeStoreWithWorkspaceSession(getDefaultWorkspaceSession())
     const runtimeStore = {
-      ...makeRuntimeStoreWithWorkspaceSession(getDefaultWorkspaceSession()).runtimeStore,
+      ...fixture.runtimeStore,
       getSettings: () => ({
         ...store.getSettings(),
         defaultTuiAgent: 'codex' as const,
@@ -365,15 +366,17 @@ describe('OrcaRuntimeService', () => {
     expect(mainEnv.ORCA_PANE_KEY).toBeDefined()
     expect(setupEnv.ORCA_TAB_ID).toBe(mainEnv.ORCA_TAB_ID)
     const mainLeafId = mainEnv.ORCA_PANE_KEY!.slice(`${mainEnv.ORCA_TAB_ID!}:`.length)
-    expect(revealTerminalSession).toHaveBeenLastCalledWith(
+    // The source pane is saved before the split, so the window gets the split from the saved layout.
+    const layout = fixture.getSession().terminalLayoutsByTabId[mainEnv.ORCA_TAB_ID!]
+    expect(layout?.root).toMatchObject({
+      type: 'split',
+      direction: 'vertical',
+      first: { type: 'leaf', leafId: mainLeafId }
+    })
+    expect(Object.values(layout?.ptyIdsByLeafId ?? {})).toContain('pty-startup-split-setup')
+    expect(revealTerminalSession).not.toHaveBeenCalledWith(
       result.worktree.id,
-      expect.objectContaining({
-        ptyId: 'pty-startup-split-setup',
-        tabId: mainEnv.ORCA_TAB_ID,
-        activate: false,
-        splitFromLeafId: mainLeafId,
-        splitDirection: 'vertical'
-      })
+      expect.objectContaining({ ptyId: 'pty-startup-split-setup' })
     )
   })
 

@@ -123,7 +123,8 @@ export const RATCHETS = [
     // These names also key unrelated main objects, so only the session itself counts as a key.
     keyedFields: new Set(SESSION_FIELDS),
     entryContentFields: new Set(),
-    allowed: () => false,
+    // The one writer the plan allows: the runtime layout holder's save.
+    allowed: (rel) => rel === 'src/main/runtime/runtime-workspace-layout-writer.ts',
     header: [
       '# Main-process writers of saved workspace layout, per file: calls of the Store layout',
       '# setters, plus assignments, deletes and object keys that edit session partitions directly.',

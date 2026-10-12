@@ -15,9 +15,21 @@ import type {
 } from '../../shared/workspace-layout/workspace-layout-published'
 import { findTerminalTab } from '../../shared/workspace-layout/workspace-layout-removal'
 import type { RuntimePaneStartAttempts } from './runtime-pane-start-attempts'
+import type { HolderStore } from './runtime-workspace-layout-writer'
 
 /** What the PTY registry knows of a bound pane's terminal. */
 export type TerminalFacts = (ptyId: string) => { fact: PaneTerminalFact; liveTitle?: string }
+
+export type RuntimeWorkspaceLayoutsDeps = {
+  store: () => HolderStore | null
+  /** The partition that owns a workspace key; null when none does. */
+  homeHostId: (key: string) => ExecutionHostId | null
+  /** A partition an orcad conversion froze for downgrade; it can be fenced mid-session. */
+  isFrozenPartition: (hostId: ExecutionHostId) => boolean
+  /** What the PTY registry knows of a bound pane's terminal. */
+  terminal: TerminalFacts
+  stopTerminals: (ptyIds: readonly string[]) => void
+}
 
 /** A catalog workspace with no tabs. */
 export function emptyPublishedWorkspace(key: string): PublishedWorkspaceLayout {

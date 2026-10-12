@@ -92,7 +92,7 @@ function createHarness() {
   })
 
   /** Stands in for LoadingStore.persistPtyBinding: the minimal tab + layout the
-   *  store writes when a spawn carries persistHostSessionBinding. */
+   *  store writes when a spawn carries runtimeAdmittedPane. */
   const persistPtyBinding = (
     worktreeId: string,
     tabId: string,
@@ -135,13 +135,13 @@ function createHarness() {
       worktreeId: string
       tabId: string
       leafId: string
-      persistHostSessionBinding?: boolean
+      runtimeAdmittedPane?: boolean
     }) => {
       const ptyId = PTY_ID_BY_WORKTREE[args.worktreeId]!
       spawnedTabIdByWorktree.set(args.worktreeId, args.tabId)
       // Why: only the host binding contract decides this — the test must not
       // hand the runtime an ownership signal the create path did not produce.
-      if (args.persistHostSessionBinding) {
+      if (args.runtimeAdmittedPane) {
         persistPtyBinding(args.worktreeId, args.tabId, args.leafId, ptyId)
       }
       return { id: ptyId }

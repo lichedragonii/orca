@@ -56,7 +56,7 @@ describe('OrcaRuntimeService', () => {
     expect(spawnCall).toMatchObject({
       cwd: folderPath,
       worktreeId: TEST_FOLDER_WORKSPACE_KEY,
-      persistHostSessionBinding: true
+      runtimeAdmittedPane: true
     })
     expectStablePaneKeyEnv(spawnedEnv)
     expect(spawnedEnv.ORCA_WORKSPACE_ID).toBe(TEST_FOLDER_WORKSPACE_KEY)
@@ -93,7 +93,7 @@ describe('OrcaRuntimeService', () => {
       expect.objectContaining({
         connectionId: 'ssh-1',
         worktreeId: TEST_WORKTREE_ID,
-        persistHostSessionBinding: true
+        runtimeAdmittedPane: true
       })
     )
     expect(spawn.mock.calls[0]?.[0]).not.toHaveProperty('sessionId')

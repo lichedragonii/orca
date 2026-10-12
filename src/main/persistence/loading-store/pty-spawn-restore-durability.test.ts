@@ -1,11 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fixture, admitRuntimeSpawnPane } from './profile-state-delayed-authority-fixture'
+import { fixture } from './profile-state-delayed-authority-fixture'
 import { OrcaRuntimeService } from '../../runtime/orca-runtime'
 import { commitPtyIpcSpawn } from '../../ipc/pty/ipc/spawn-commit'
 import { createPtyIpcSpawnState } from '../../ipc/pty/ipc/spawn-state'
 import type { PtySpawnResult } from '../../providers/types'
-import { commitRuntimePtySpawn } from '../../ipc/pty/runtime/spawn-commit'
-import { createRuntimePtySpawnState } from '../../ipc/pty/runtime/spawn-state'
 import { createPtySpawnCommitDependencies } from './pty-spawn-commit-dependencies-fixture'
 
 vi.mock('../../telemetry/client', () => ({ track: vi.fn() }))
@@ -36,7 +34,7 @@ const restores: Pick<PtySpawnResult, 'snapshot' | 'coldRestore' | 'replay'>[] = 
   { replay: 'restored history\r\n' }
 ]
 
-describe.each(['ipc', 'runtime'])('%s restored scrollback', (controller) => {
+describe('ipc restored scrollback', () => {
   it.each(restores)(
     'keeps restored history before output during the binding save: %j',
     async (restore) => {
@@ -46,20 +44,12 @@ describe.each(['ipc', 'runtime'])('%s restored scrollback', (controller) => {
       const deps = createPtySpawnCommitDependencies(runtime, store)
       let commit: () => Promise<unknown>
       const result = { id: binding.ptyId, incarnationId: binding.incarnationId, ...restore }
-      if (controller === 'ipc') {
-        const ctx = createPtyIpcSpawnState(deps, { ...binding, cols: 80, rows: 24 })
-        ctx.result = result
-        ctx.metadataLeafId = binding.leafId
-        ctx.validatedLeafId = binding.leafId
-        commit = () => commitPtyIpcSpawn(ctx)
-      } else {
-        const ctx = createRuntimePtySpawnState(deps, { ...binding, cols: 80, rows: 24 })
-        ctx.result = result
-        ctx.metadataLeafId = binding.leafId
-        await admitRuntimeSpawnPane(store, binding)
-        ctx.hostSessionBinding = { ...binding }
-        commit = () => commitRuntimePtySpawn(ctx)
-      }
+      const ctx = createPtyIpcSpawnState(deps, { ...binding, cols: 80, rows: 24 })
+      ctx.result = result
+      ctx.metadataLeafId = binding.leafId
+      ctx.validatedLeafId = binding.leafId
+      commit = () => commitPtyIpcSpawn(ctx)
+
       const gate = authority.pause()
       const pending = commit()
       await gate.started.promise

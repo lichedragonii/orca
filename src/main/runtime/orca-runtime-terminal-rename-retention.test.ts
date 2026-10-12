@@ -49,7 +49,8 @@ describe('terminal rename before renderer graph hydration', () => {
 
       expect(getSession().tabsByWorktree[TEST_WORKTREE_ID][0].customTitle).toBe(title)
       expect(renameTerminal).toHaveBeenCalledWith('host-tab', title)
-      runtime.onPtyExit('omp-initial-pty', 0)
+      // A lost process, not a proven exit: the pane stays for its replacement.
+      runtime.onPtyExit('omp-initial-pty', -1)
       const restored = new OrcaRuntimeService(checkedStore)
       restored.setPtyController({
         spawn: vi.fn(async () => ({ id: 'omp-replacement-pty' })),

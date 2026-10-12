@@ -1,10 +1,8 @@
 import { expect, it, vi } from 'vitest'
-import { fixture, admitRuntimeSpawnPane } from './profile-state-delayed-authority-fixture'
+import { fixture } from './profile-state-delayed-authority-fixture'
 import { OrcaRuntimeService } from '../../runtime/orca-runtime'
 import { commitPtyIpcSpawn } from '../../ipc/pty/ipc/spawn-commit'
 import { createPtyIpcSpawnState } from '../../ipc/pty/ipc/spawn-state'
-import { commitRuntimePtySpawn } from '../../ipc/pty/runtime/spawn-commit'
-import { createRuntimePtySpawnState } from '../../ipc/pty/runtime/spawn-state'
 import { createPtySpawnCommitDependencies } from './pty-spawn-commit-dependencies-fixture'
 
 vi.mock('../../telemetry/client', () => ({ track: vi.fn() }))
@@ -36,43 +34,27 @@ class MobileCreateRuntime extends OrcaRuntimeService {
   }
 }
 
-it.each(['ipc', 'runtime'])(
-  'publishes the preallocated handle to a pending mobile %s create',
-  async (controller) => {
-    const { store, authority } = await fixture()
-    const runtime = new MobileCreateRuntime(store)
-    const preAllocatedHandle = runtime.createPreAllocatedTerminalHandle()
-    const surface = runtime.waitForCreatedSurface()
-    runtime.onPtySpawned(binding.ptyId, binding.incarnationId)
-    const deps = createPtySpawnCommitDependencies(runtime, store)
-    let commit: () => Promise<unknown>
-    if (controller === 'ipc') {
-      const ctx = createPtyIpcSpawnState(deps, { ...binding, cols: 80, rows: 24 })
-      ctx.result = { id: binding.ptyId, incarnationId: binding.incarnationId }
-      ctx.metadataLeafId = binding.leafId
-      ctx.validatedLeafId = binding.leafId
-      ctx.preAllocatedHandle = preAllocatedHandle
-      commit = () => commitPtyIpcSpawn(ctx)
-    } else {
-      const ctx = createRuntimePtySpawnState(deps, {
-        ...binding,
-        cols: 80,
-        rows: 24,
-        preAllocatedHandle
-      })
-      ctx.result = { id: binding.ptyId, incarnationId: binding.incarnationId }
-      ctx.metadataLeafId = binding.leafId
-      await admitRuntimeSpawnPane(store, binding)
-      ctx.hostSessionBinding = { ...binding }
-      commit = () => commitRuntimePtySpawn(ctx)
-    }
-    const gate = authority.pause()
-    const pending = commit()
-    await gate.started.promise
-    gate.finish.resolve()
-    await pending
-    const result = await surface
-    expect(result.tab.terminal).toBe(preAllocatedHandle)
-    await runtime.onPtyExit(binding.ptyId, 0, binding.incarnationId, { providerExitObserved: true })
-  }
-)
+it('publishes the preallocated handle to a pending mobile ipc create', async () => {
+  const { store, authority } = await fixture()
+  const runtime = new MobileCreateRuntime(store)
+  const preAllocatedHandle = runtime.createPreAllocatedTerminalHandle()
+  const surface = runtime.waitForCreatedSurface()
+  runtime.onPtySpawned(binding.ptyId, binding.incarnationId)
+  const deps = createPtySpawnCommitDependencies(runtime, store)
+  let commit: () => Promise<unknown>
+  const ctx = createPtyIpcSpawnState(deps, { ...binding, cols: 80, rows: 24 })
+  ctx.result = { id: binding.ptyId, incarnationId: binding.incarnationId }
+  ctx.metadataLeafId = binding.leafId
+  ctx.validatedLeafId = binding.leafId
+  ctx.preAllocatedHandle = preAllocatedHandle
+  commit = () => commitPtyIpcSpawn(ctx)
+
+  const gate = authority.pause()
+  const pending = commit()
+  await gate.started.promise
+  gate.finish.resolve()
+  await pending
+  const result = await surface
+  expect(result.tab.terminal).toBe(preAllocatedHandle)
+  await runtime.onPtyExit(binding.ptyId, 0, binding.incarnationId, { providerExitObserved: true })
+})

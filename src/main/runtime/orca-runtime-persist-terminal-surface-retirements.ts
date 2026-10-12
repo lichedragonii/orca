@@ -3,6 +3,7 @@ import { OrcaRuntimeWithTouchMobileSessionTabsForWorktree } from './orca-runtime
 import type { RetiredTerminalSurface } from './mobile-session-terminal-retirement'
 import type { RuntimeMobileSessionRetiredTerminalSurface } from '../../shared/runtime-types'
 import { LOCAL_EXECUTION_HOST_ID } from '../../shared/execution-host'
+import { retireTerminalSurfaceFromPersistence } from './mobile-session-terminal-persistence-retirement'
 import type { ProcessExitFacts } from '../../shared/workspace-layout/workspace-layout-process-exit'
 import { retireTerminalSurfacesFromSnapshot } from './mobile-session-terminal-retirement'
 import { attachRetirementProofsToSnapshot } from './mobile-session-terminal-retirement-proof'
@@ -27,7 +28,8 @@ export class OrcaRuntimeWithPersistTerminalSurfaceRetirements extends OrcaRuntim
       const hostId =
         this.tryGetWorkspaceSessionHostIdForWorktree(surface.worktreeId) ?? LOCAL_EXECUTION_HOST_ID
       if (!this.layoutHolder.model(hostId)) {
-        unpersisted.push(surface)
+        // A partition the holder does not hold (a runtime server's) keeps today's Store retirement.
+        this.retireSurfaceInStore(hostId, surface, accepted, unpersisted)
         continue
       }
       const exited = {
@@ -42,6 +44,31 @@ export class OrcaRuntimeWithPersistTerminalSurfaceRetirements extends OrcaRuntim
       }
     }
     return { accepted, unpersisted }
+  }
+
+  private retireSurfaceInStore(
+    hostId: string,
+    surface: RetiredTerminalSurface,
+    accepted: RetiredTerminalSurface[],
+    unpersisted: RetiredTerminalSurface[]
+  ): void {
+    const current = this.store?.getWorkspaceSession?.(hostId)
+    if (!current) {
+      unpersisted.push(surface)
+      return
+    }
+    const next = retireTerminalSurfaceFromPersistence(current, surface)
+    if (next === current) {
+      return
+    }
+    try {
+      this.store.setWorkspaceSession(next, hostId)
+      accepted.push(surface)
+    } catch (error) {
+      // Why: the process is gone whether or not the profile admits the write (quit, maintenance).
+      console.error('[runtime] could not stage terminal retirement:', error)
+      unpersisted.push(surface)
+    }
   }
 
   // Why synchronous: the exit's stream end cues clients to re-activate, which must find the leaf gone.

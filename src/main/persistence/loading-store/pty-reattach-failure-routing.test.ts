@@ -1,10 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fixture, admitRuntimeSpawnPane } from './profile-state-delayed-authority-fixture'
+import { fixture } from './profile-state-delayed-authority-fixture'
 import { OrcaRuntimeService } from '../../runtime/orca-runtime'
 import { commitPtyIpcSpawn } from '../../ipc/pty/ipc/spawn-commit'
 import { createPtyIpcSpawnState } from '../../ipc/pty/ipc/spawn-state'
-import { commitRuntimePtySpawn } from '../../ipc/pty/runtime/spawn-commit'
-import { createRuntimePtySpawnState } from '../../ipc/pty/runtime/spawn-state'
 import { createPtySpawnCommitDependencies } from './pty-spawn-commit-dependencies-fixture'
 import { clearProviderPtyState } from '../../ipc/pty/provider/state-cleanup'
 import { ptyIncarnationById, ptyOwnership } from '../../ipc/pty/provider/ownership-state'
@@ -33,7 +31,7 @@ afterEach(() => {
   ptyOwnership.delete(binding.ptyId)
 })
 
-describe.each(['ipc', 'runtime'])('%s failed reattach routing', (controller) => {
+describe('ipc failed reattach routing', () => {
   it.each(
     [undefined, incarnation].flatMap((incarnationId) =>
       ['live', 'exited', 'replaced'].map((outcome) => ({ incarnationId, outcome }))
@@ -49,32 +47,18 @@ describe.each(['ipc', 'runtime'])('%s failed reattach routing', (controller) => 
       const result = { id: binding.ptyId, incarnationId, isReattach: true }
       let commit: () => Promise<unknown>
       let shutdown: ReturnType<typeof vi.spyOn>
-      if (controller === 'ipc') {
-        const ctx = createPtyIpcSpawnState(deps, {
-          ...binding,
-          connectionId,
-          cols: 80,
-          rows: 24
-        })
-        ctx.result = result
-        ctx.metadataLeafId = binding.leafId
-        ctx.validatedLeafId = binding.leafId
-        shutdown = vi.spyOn(ctx.provider, 'shutdown')
-        commit = () => commitPtyIpcSpawn(ctx)
-      } else {
-        const ctx = createRuntimePtySpawnState(deps, {
-          ...binding,
-          connectionId,
-          cols: 80,
-          rows: 24
-        })
-        ctx.result = result
-        ctx.metadataLeafId = binding.leafId
-        await admitRuntimeSpawnPane(store, binding, connectionId)
-        ctx.hostSessionBinding = { ...binding }
-        shutdown = vi.spyOn(ctx.provider, 'shutdown')
-        commit = () => commitRuntimePtySpawn(ctx)
-      }
+      const ctx = createPtyIpcSpawnState(deps, {
+        ...binding,
+        connectionId,
+        cols: 80,
+        rows: 24
+      })
+      ctx.result = result
+      ctx.metadataLeafId = binding.leafId
+      ctx.validatedLeafId = binding.leafId
+      shutdown = vi.spyOn(ctx.provider, 'shutdown')
+      commit = () => commitPtyIpcSpawn(ctx)
+
       const gate = authority.pause()
       const pending = expect(commit()).rejects.toThrow('ORCA_TERMINAL_SESSION_STATE_SAVE_FAILED')
       await gate.started.promise

@@ -384,7 +384,7 @@ describe('OrcaRuntimeService', () => {
       leafId: HEADLESS_LEAF_ID,
       worktreeId: TEST_WORKTREE_ID
     })
-    // persistHostSessionBinding is no longer a per-call opt-in: createTerminal
+    // runtimeAdmittedPane is no longer a per-call opt-in: createTerminal
     // is host-initiated by construction and always persists its binding.
     expect(createTerminal).toHaveBeenCalledWith(`id:${TEST_WORKTREE_ID}`, {
       tabId,

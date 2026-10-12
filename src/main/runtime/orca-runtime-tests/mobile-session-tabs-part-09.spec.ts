@@ -359,7 +359,7 @@ describe('OrcaRuntimeService', () => {
         tabId: 'host-tab',
         leafId: HEADLESS_LEAF_ID,
         sessionId: 'ssh:ssh-1@@relay-pty',
-        persistHostSessionBinding: true
+        runtimeAdmittedPane: true
       })
     )
   })
@@ -444,7 +444,7 @@ describe('OrcaRuntimeService', () => {
         connectionId: 'ssh-1',
         tabId: 'host-tab',
         leafId: HEADLESS_LEAF_ID,
-        persistHostSessionBinding: true
+        runtimeAdmittedPane: true
       })
     )
     expect(spawn.mock.calls[1]?.[0]).not.toHaveProperty('sessionId')
@@ -639,7 +639,7 @@ describe('OrcaRuntimeService', () => {
         connectionId: 'ssh-1',
         tabId: 'host-tab',
         leafId: HEADLESS_LEAF_ID,
-        persistHostSessionBinding: true
+        runtimeAdmittedPane: true
       })
     )
     expect(spawn.mock.calls[0]?.[0]).not.toHaveProperty('sessionId')

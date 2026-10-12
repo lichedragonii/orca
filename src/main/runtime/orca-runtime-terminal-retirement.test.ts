@@ -683,7 +683,6 @@ describe('OrcaRuntimeService terminal surface retirement', () => {
             ptyIdsByLeafId: { right: 'pty-right' }
           })
         },
-        terminalSurfaceTombstonesByPaneKey: {},
         terminalTopologyRevisionByRepoId: { [REPO_ID]: 1 }
       }),
       LOCAL_EXECUTION_HOST_ID
@@ -723,7 +722,7 @@ describe('OrcaRuntimeService terminal surface retirement', () => {
     ])
     expect(events).not.toEqual([])
     expect(errorSpy).toHaveBeenCalledWith(
-      '[runtime] terminal retirement is not yet durable:',
+      '[workspace-layout] could not save the layout:',
       expect.any(Error)
     )
     unsubscribe()

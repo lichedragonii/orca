@@ -40,12 +40,12 @@ function createRuntimeWithAttachedWindow(): {
 }
 
 describe('host-initiated terminal creation under an attached window', () => {
-  it('persists the host session binding at spawn', async () => {
+  it('spawns into the pane the runtime admitted', async () => {
     const { runtime, spawn } = createRuntimeWithAttachedWindow()
 
     await runtime.createTerminal('id:repo-1::/tmp/wt-cli', {})
 
-    expect(spawn).toHaveBeenCalledWith(expect.objectContaining({ persistHostSessionBinding: true }))
+    expect(spawn).toHaveBeenCalledWith(expect.objectContaining({ runtimeAdmittedPane: true }))
   })
 
   it('spawns hidden so main answers startup queries before any pane mounts', async () => {

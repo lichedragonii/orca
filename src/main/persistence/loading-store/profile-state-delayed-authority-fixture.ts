@@ -11,7 +11,6 @@ import type {
   ProfileStateDomainReplacement
 } from './profile-state-authority'
 import { Store } from './store'
-import { toSshExecutionHostId } from '../../../shared/execution-host'
 
 export function deferred<T>() {
   let resolve!: (value: T) => void
@@ -147,21 +146,4 @@ export async function fixture(legacyOpenCodeGoApiKey?: string) {
     }
   }
   return { store, authority, readState }
-}
-
-/** The runtime writes a pane before it spawns; a runtime spawn commit binds only that pane. */
-export async function admitRuntimeSpawnPane(
-  store: Store,
-  pane: { worktreeId: string; tabId: string; leafId: string },
-  connectionId?: string | null
-): Promise<void> {
-  await store.admitTerminalPane(
-    {
-      type: 'createTerminalTab',
-      workspace: pane.worktreeId,
-      tabId: pane.tabId,
-      leafId: pane.leafId
-    },
-    connectionId ? toSshExecutionHostId(connectionId) : undefined
-  )
 }

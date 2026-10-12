@@ -580,7 +580,7 @@ describe('OrcaRuntimeService', () => {
         tabId: 'host-tab',
         leafId: HEADLESS_LEAF_ID,
         sessionId: 'serve-persisted-pty',
-        persistHostSessionBinding: true,
+        runtimeAdmittedPane: true,
         worktreeId: TEST_WORKTREE_ID
       })
     )

@@ -29,27 +29,45 @@ import {
 import { findWorkspaceReferences } from './runtime-reference-find'
 import { createReferenceAgentIndex, referenceConnectionHosts } from './runtime-reference-agents'
 import type { RuntimeReferenceFindParams } from '../../shared/runtime-reference-contracts'
-import { getRepoExecutionHostId, toSshExecutionHostId } from '../../shared/execution-host'
+import {
+  getRepoExecutionHostId,
+  toSshExecutionHostId,
+  type ExecutionHostId
+} from '../../shared/execution-host'
 import { UNVERIFIED_PROCESS_EXIT_CODE } from '../../shared/terminal-exit-cause'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../shared/constants'
 import { folderWorkspaceKey } from '../../shared/workspace-scope'
 import { getRepoMainWorktreeId } from '../../shared/worktree/id'
 
-function holderStore(store: RuntimeStore | null): (HolderStore & RuntimeStore) | null {
-  const { getWorkspaceSession, getWorkspaceSessionHostIds, setWorkspaceSession } = store ?? {}
-  return store && getWorkspaceSession && getWorkspaceSessionHostIds && setWorkspaceSession
-    ? { ...store, getWorkspaceSession, getWorkspaceSessionHostIds, setWorkspaceSession }
-    : null
+/** The Store's session methods the holder uses; null for a runtime built without them. */
+function holderStore(store: RuntimeStore | null): HolderStore | null {
+  if (!store?.getWorkspaceSession || !store.setWorkspaceSession) {
+    return null
+  }
+  return {
+    getWorkspaceSession: (hostId) => store.getWorkspaceSession!(hostId),
+    // A Store that lists no partitions holds only the local one.
+    getWorkspaceSessionHostIds: () => store.getWorkspaceSessionHostIds?.() ?? ['local'],
+    setWorkspaceSession: (session, hostId) => store.setWorkspaceSession!(session, hostId),
+    ...(store.runDurableMutation
+      ? { runDurableMutation: (mutate) => store.runDurableMutation!(mutate) }
+      : {})
+  }
 }
 
 class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
   /** The one copy of every host partition's tab layout (PR 6). */
   protected readonly layoutHolder = new RuntimeWorkspaceLayouts({
     store: () => holderStore(this.store),
-    homeHostId: (key) => this.tryGetWorkspaceSessionHostIdForWorktree(key),
+    homeHostId: (key) => this.layoutHomeHostId(key),
     isFrozenPartition: (hostId) => {
-      const getSshTarget = this.store?.getSshTarget
-      return getSshTarget ? isFrozenOrcadSourceSessionPartition({ getSshTarget }, hostId) : false
+      const store = this.store
+      return store?.getSshTarget
+        ? isFrozenOrcadSourceSessionPartition(
+            { getSshTarget: (id) => store.getSshTarget!(id) },
+            hostId
+          )
+        : false
     },
     terminal: (ptyId) => {
       const pty = this.ptysById.get(ptyId)
@@ -133,15 +151,18 @@ class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
     this.addCatalogWorkspaces([
       FLOATING_TERMINAL_WORKTREE_ID,
       ...(this.store?.getFolderWorkspaces?.() ?? []).map((folder) => folderWorkspaceKey(folder.id)),
-      ...(this.store?.getRepos() ?? []).map((repo) => getRepoMainWorktreeId(repo)),
+      ...(this.store?.getRepos?.() ?? []).map((repo) => getRepoMainWorktreeId(repo)),
       ...Object.keys(this.store?.getAllWorktreeMetaForHost?.('local') ?? {})
     ])
     this.resolvedWorktrees.onResolved = (snapshot) =>
       this.addCatalogWorkspaces(snapshot.worktrees.map((worktree) => worktree.id))
-    if (store?.onWorkspaceSessionWritten) {
+    if (store) {
+      const onWritten = this.store?.onWorkspaceSessionWritten
       reloadHolderOnExternalWrites(this.layoutHolder, {
         ...store,
-        onWorkspaceSessionWritten: store.onWorkspaceSessionWritten
+        ...(onWritten
+          ? { onWorkspaceSessionWritten: (listener) => onWritten.call(this.store, listener) }
+          : {})
       })
     }
   }
@@ -193,10 +214,25 @@ class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
 
   protected readonly paneTitleFacts = new PaneTitleFacts(this.layoutHolder)
 
+  /** No partition owns a folder whose child repos sit on different hosts, so it is not published. */
+  private layoutHomeHostId(key: string): ExecutionHostId | null {
+    try {
+      return this.tryGetWorkspaceSessionHostIdForWorktree(key)
+    } catch (error) {
+      if (error instanceof Error && error.message === 'folder_workspace_connection_ambiguous') {
+        return null
+      }
+      throw error
+    }
+  }
+
   /** Local catalog workspaces are published, empty until they have tabs; others' hosts publish theirs. */
   addCatalogWorkspaces(keys: readonly string[]): void {
     this.layoutHolder.addCatalogWorkspaces(
-      keys.filter((key) => this.layoutHolder.holds(this.layoutHolder.hostIdOf(key) ?? 'local'))
+      keys.filter((key) => {
+        const home = this.layoutHolder.hostIdOf(key)
+        return home !== null && this.layoutHolder.holds(home)
+      })
     )
   }
 

@@ -103,152 +103,6 @@ describe('registerPtyHandlers', () => {
     expect(resizeController.resize(spawned.id, 120, 30)).toBe(false)
     expect(resizeController.getSize(spawned.id)).toEqual({ cols: 80, rows: 24 })
   })
-  it('persists runtime-owned headless session bindings when explicitly requested', async () => {
-    type RuntimeSpawnController = {
-      spawn(args: {
-        cols: number
-        rows: number
-        worktreeId?: string
-        env?: Record<string, string>
-        tabId?: string
-        leafId?: string
-        persistHostSessionBinding?: boolean
-      }): Promise<{ id: string }>
-    }
-    const store = {
-      persistPtyBinding: vi.fn()
-    }
-    let controller: RuntimeSpawnController | null = null
-    const runtime = {
-      setPtyController: vi.fn((value) => {
-        controller = value
-      }),
-      createPreAllocatedTerminalHandle: vi.fn(() => 'term_trusted'),
-      preAllocateHandleForPty: vi.fn(() => 'term_trusted'),
-      registerPreAllocatedHandleForPty: vi.fn(),
-      registerPty: vi.fn(),
-      noteTerminalSpawnCommand: vi.fn(),
-      onPtySpawned: vi.fn(),
-      onPtyExit: vi.fn(),
-      onPtyData: vi.fn()
-    }
-
-    registerPtyHandlers(
-      mainWindow as never,
-      runtime as never,
-      undefined,
-      undefined,
-      undefined,
-      store as never
-    )
-    const spawnController = controller as unknown as RuntimeSpawnController
-    const leafId = '11111111-1111-4111-8111-111111111111'
-    await spawnController.spawn({
-      cols: 80,
-      rows: 24,
-      worktreeId: 'wt-1',
-      tabId: 'tab-headless',
-      leafId,
-      env: { ORCA_PANE_KEY: makePaneKey('tab-headless', leafId) },
-      persistHostSessionBinding: true
-    })
-
-    expect(store.persistPtyBinding).toHaveBeenCalledWith({
-      worktreeId: 'wt-1',
-      tabId: 'tab-headless',
-      leafId,
-      ptyId: expect.any(String),
-      incarnationId: expect.any(String),
-      mayCreate: false,
-      origin: 'spawn'
-    })
-  })
-  it('shuts down a split PTY when its expected source binding was retired', async () => {
-    type RuntimeSpawnController = {
-      spawn(args: {
-        cols: number
-        rows: number
-        worktreeId: string
-        tabId: string
-        leafId: string
-        persistHostSessionBinding: boolean
-        expectedSourceBinding: {
-          worktreeId: string
-          tabId: string
-          leafId: string
-          ptyId: string
-        }
-      }): Promise<{ id: string }>
-    }
-    let exitCallback: ((event: { exitCode: number }) => void) | undefined
-    const killSpy = vi.fn(() => {
-      exitCallback?.({ exitCode: 0 })
-    })
-    const proc = {
-      onData: vi.fn(),
-      onExit: vi.fn((cb) => {
-        exitCallback = cb
-        return { dispose: () => {} }
-      }),
-      write: vi.fn(),
-      resize: vi.fn(),
-      kill: killSpy,
-      process: 'zsh',
-      pid: 12345
-    }
-    spawnMock.mockReturnValue(proc)
-    const store = { persistPtyBinding: vi.fn(() => false) }
-    let controller: RuntimeSpawnController | null = null
-    const runtime = {
-      setPtyController: vi.fn((value) => {
-        controller = value
-      }),
-      preAllocateHandleForPty: vi.fn(() => 'term_expected'),
-      registerPreAllocatedHandleForPty: vi.fn(),
-      registerPty: vi.fn(),
-      noteTerminalSpawnCommand: vi.fn(),
-      onPtySpawned: vi.fn(),
-      onPtyExit: vi.fn(),
-      onPtyData: vi.fn()
-    }
-    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
-    registerPtyHandlers(
-      mainWindow as never,
-      runtime as never,
-      undefined,
-      undefined,
-      undefined,
-      store as never
-    )
-    const leafId = '22222222-2222-4222-8222-222222222222'
-    const expectedSourceBinding = {
-      worktreeId: 'wt-1',
-      tabId: 'tab-headless',
-      leafId: '11111111-1111-4111-8111-111111111111',
-      ptyId: 'pty-source'
-    }
-
-    try {
-      await expect(
-        (controller as unknown as RuntimeSpawnController).spawn({
-          cols: 80,
-          rows: 24,
-          worktreeId: 'wt-1',
-          tabId: 'tab-headless',
-          leafId,
-          persistHostSessionBinding: true,
-          expectedSourceBinding
-        })
-      ).rejects.toThrow('terminal_split_source_not_found')
-    } finally {
-      error.mockRestore()
-    }
-
-    expect(store.persistPtyBinding).toHaveBeenCalledWith(
-      expect.objectContaining({ expectedSourceBinding })
-    )
-    expect(killSpy).toHaveBeenCalledOnce()
-  })
   it('reports lower-owner commit before rejecting an early-exited runtime incarnation', async () => {
     const persistPtyBinding = vi.fn()
     const onPtySpawnCommitted = vi.fn()
@@ -307,7 +161,7 @@ describe('registerPtyHandlers', () => {
         tabId,
         leafId,
         preAllocatedHandle: 'term_early_exit',
-        persistHostSessionBinding: true,
+        runtimeAdmittedPane: true,
         onPtySpawnCommitted
       })
     ).rejects.toThrow('agent_session_exited_during_start')
@@ -420,7 +274,7 @@ describe('registerPtyHandlers', () => {
         env?: Record<string, string>
         tabId?: string
         leafId?: string
-        persistHostSessionBinding?: boolean
+        runtimeAdmittedPane?: boolean
       }): Promise<{ id: string }>
     }
     let resolveSpawn!: (result: { id: string }) => void
@@ -489,7 +343,7 @@ describe('registerPtyHandlers', () => {
       tabId: 'tab-race',
       leafId,
       env: { ORCA_PANE_KEY: paneKey },
-      persistHostSessionBinding: true
+      runtimeAdmittedPane: true
     })
     await Promise.resolve()
 
@@ -513,14 +367,5 @@ describe('registerPtyHandlers', () => {
       { id: 'pty-shared', isReattach: true }
     ])
     expect(providerSpawn).toHaveBeenCalledTimes(1)
-    expect(store.persistPtyBinding).toHaveBeenCalledWith({
-      worktreeId: 'repo-1::/tmp',
-      tabId: 'tab-race',
-      leafId,
-      ptyId: 'pty-shared',
-      startupCwd: '/tmp',
-      mayCreate: false,
-      origin: 'spawn'
-    })
   })
 })

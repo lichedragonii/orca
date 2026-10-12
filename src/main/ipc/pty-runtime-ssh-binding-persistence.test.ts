@@ -58,7 +58,7 @@ describe('registerPtyHandlers', () => {
         worktreeId?: string
         tabId?: string
         leafId?: string
-        persistHostSessionBinding?: boolean
+        runtimeAdmittedPane?: boolean
       }): Promise<{ id: string }>
     }
     const store = {
@@ -94,7 +94,7 @@ describe('registerPtyHandlers', () => {
       worktreeId: 'wt-1',
       tabId: 'tab-headless',
       leafId: validLeafId,
-      persistHostSessionBinding: true
+      runtimeAdmittedPane: true
     }
 
     for (const args of [

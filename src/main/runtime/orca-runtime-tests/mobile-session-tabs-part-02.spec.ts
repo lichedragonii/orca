@@ -292,7 +292,7 @@ describe('OrcaRuntimeService', () => {
         tabId: 'host-tab',
         leafId: HEADLESS_LEAF_ID,
         sessionId: persistedPtyId,
-        persistHostSessionBinding: true
+        runtimeAdmittedPane: true
       })
     )
     expect(spawn.mock.calls[0]?.[0]).not.toHaveProperty('isNewSession')
@@ -367,7 +367,7 @@ describe('OrcaRuntimeService', () => {
         leafId: HEADLESS_LEAF_ID,
         sessionId: expect.stringMatching(/^serve-/),
         isNewSession: true,
-        persistHostSessionBinding: true
+        runtimeAdmittedPane: true
       })
     )
     expect(activated.tabs).toEqual([

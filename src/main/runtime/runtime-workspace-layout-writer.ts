@@ -3,6 +3,7 @@
 // save writes the latest state.
 
 import type { ExecutionHostId } from '../../shared/execution-host'
+import type { LayoutCommand } from '../../shared/workspace-layout/workspace-layout-command-types'
 import type { WorkspaceSessionState } from '../../shared/workspace-session-state-types'
 import type { LoadedWorkspaceLayout } from '../../shared/workspace-layout/workspace-layout-load-types'
 import { saveWorkspaceLayout } from '../../shared/workspace-layout/workspace-layout-save'
@@ -12,6 +13,15 @@ export type HolderStore = Required<
   Pick<RuntimeStore, 'getWorkspaceSession' | 'getWorkspaceSessionHostIds' | 'setWorkspaceSession'>
 > &
   Pick<RuntimeStore, 'runDurableMutation'>
+
+/** Commands written to disk at once, as structural changes are today; the rest on the debounce. */
+export const DURABLE_COMMANDS = new Set<LayoutCommand['type']>([
+  'createTerminalTab',
+  'splitPane',
+  'closePane',
+  'closeTabs',
+  'movePaneToNewTab'
+])
 
 export class RuntimeWorkspaceLayoutWriter {
   /** Host id → the Store's partition object after the holder's last own write or load. */

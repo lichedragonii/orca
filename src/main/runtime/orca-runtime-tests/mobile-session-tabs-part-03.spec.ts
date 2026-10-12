@@ -273,7 +273,7 @@ describe('OrcaRuntimeService', () => {
         worktreeId: TEST_WORKTREE_ID,
         tabId: expect.stringMatching(UUID_RE),
         leafId: expect.stringMatching(UUID_RE),
-        persistHostSessionBinding: true,
+        runtimeAdmittedPane: true,
         preAllocatedHandle: expect.stringMatching(/^term_/)
       })
     )

@@ -214,7 +214,7 @@ describe('registerPtyHandlers', () => {
         env?: Record<string, string>
         tabId?: string
         leafId?: string
-        persistHostSessionBinding?: boolean
+        runtimeAdmittedPane?: boolean
       }): Promise<{ id: string }>
     }
     let spawnCount = 0
@@ -280,7 +280,7 @@ describe('registerPtyHandlers', () => {
       tabId: 'tab-runtime-reservation',
       leafId,
       env: { ORCA_PANE_KEY: paneKey },
-      persistHostSessionBinding: true
+      runtimeAdmittedPane: true
     }
 
     await expect(spawnController.spawn(spawnArgs)).rejects.toThrow('boom')

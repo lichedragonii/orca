@@ -161,7 +161,7 @@ describe('pty spawn placement threading', () => {
       tabId: 'tab-runtime',
       leafId: LEAF,
       env: { ORCA_PANE_KEY: makePaneKey('tab-runtime', LEAF) },
-      persistHostSessionBinding: true,
+      runtimeAdmittedPane: true,
       placement: SPLIT
     })
     expect(store.persistPtyBinding).toHaveBeenCalledWith({

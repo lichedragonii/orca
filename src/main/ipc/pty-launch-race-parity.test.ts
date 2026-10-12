@@ -299,7 +299,7 @@ describe('launch race parity, both spawn lanes', () => {
     // C2 and C5e rely on this: a failed save discards the PTY, reports "unknown" and cancels registration.
     const SAVE_BINDING_ARGS: Record<LaunchRaceLane, Record<string, unknown>> = {
       ipc: {},
-      runtime: { persistHostSessionBinding: true }
+      runtime: { runtimeAdmittedPane: true }
     }
     it.each(LAUNCH_RACE_LANES)(
       '%s lane: a failed binding save discards the PTY and reports the outcome as unknown',

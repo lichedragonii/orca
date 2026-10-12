@@ -338,7 +338,7 @@ describe('OrcaRuntimeService', () => {
 
     await expect(split).rejects.toThrow('terminal_split_source_not_found')
     expect(spawn.mock.calls[0]?.[0]).toMatchObject({
-      persistHostSessionBinding: true,
+      runtimeAdmittedPane: true,
       placement: {
         kind: 'split',
         parentLeafId: HEADLESS_LEAF_ID,
@@ -526,7 +526,7 @@ describe('OrcaRuntimeService', () => {
       expect.objectContaining({
         connectionId: 'ssh-1',
         worktreeId: TEST_WORKTREE_ID,
-        persistHostSessionBinding: true,
+        runtimeAdmittedPane: true,
         expectedSourceBinding: expect.objectContaining({
           worktreeId: TEST_WORKTREE_ID,
           tabId,

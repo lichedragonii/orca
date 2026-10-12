@@ -254,7 +254,7 @@ describe('OrcaRuntimeService', () => {
           worktreeId: TEST_WORKTREE_ID,
           tabId: 'tab-pending',
           leafId: pendingLeafId,
-          persistHostSessionBinding: true,
+          runtimeAdmittedPane: true,
           preAllocatedHandle: expect.stringMatching(/^term_/)
         })
       )

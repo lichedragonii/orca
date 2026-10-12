@@ -3,7 +3,8 @@ import { locatePane } from '../../shared/workspace-layout/workspace-layout-comma
 import type { CommandOf } from '../../shared/workspace-layout/workspace-layout-command-types'
 import { paneKeyOf } from '../../shared/workspace-layout/workspace-layout-model'
 import type { RuntimePtyController } from './runtime-pty-controller-contract'
-import type { PaneStart, RuntimeWorkspaceLayouts } from './runtime-workspace-layouts'
+import type { PaneStart } from './runtime-pane-start-attempts'
+import type { RuntimeWorkspaceLayouts } from './runtime-workspace-layouts'
 
 type Spawn = NonNullable<RuntimePtyController['spawn']>
 type AdmittedSpawnArgs = Parameters<Spawn>[0] & {
@@ -92,8 +93,12 @@ export async function spawnInAdmittedPane(
   controller: Required<Pick<RuntimePtyController, 'spawn' | 'kill'>>,
   args: AdmittedSpawnArgs
 ): ReturnType<Spawn> {
-  const { start, admitted } = admit(holder, args)
   const { groupId: _groupId, ...spawnArgs } = args
+  if (!holder.model(hostIdOf(args))) {
+    // No partition holds this host's layout (a runtime without a profile): nothing to admit.
+    return controller.spawn(spawnArgs)
+  }
+  const { start, admitted } = admit(holder, args)
   let result: Awaited<ReturnType<Spawn>>
   try {
     result = await controller.spawn(spawnArgs)
@@ -123,7 +128,10 @@ export async function spawnInAdmittedPane(
     ...(result.incarnationId ? { incarnationId: result.incarnationId } : {})
   }
   const bound = holder.bindStarted(hostIdOf(args), started, start.attempt)
-  if (bound !== 'bound') {
+  if (bound === 'pane_already_bound' && admitted) {
+    // The session already shows in another pane, which keeps it.
+    withdrawRuntimePane(holder, args)
+  } else if (bound !== 'bound') {
     // A newer start of this pane, or its close, overtook this one: this terminal is not its.
     controller.kill(result.id)
     throw new Error(

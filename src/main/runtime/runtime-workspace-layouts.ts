@@ -8,7 +8,10 @@ import { parsePaneKey } from '../../shared/stable-pane-id'
 import type { WorkspaceSessionState } from '../../shared/workspace-session-state-types'
 import type { Applied } from '../../shared/workspace-layout/workspace-layout-command-steps'
 import type { WorkspaceLayoutModel } from '../../shared/workspace-layout/workspace-layout-model'
-import type { LayoutCommand } from '../../shared/workspace-layout/workspace-layout-command-types'
+import type {
+  LayoutCommand,
+  LayoutRefusalCode
+} from '../../shared/workspace-layout/workspace-layout-command-types'
 import { applyLayoutCommand } from '../../shared/workspace-layout/workspace-layout-commands'
 import { loadWorkspaceLayout } from '../../shared/workspace-layout/workspace-layout-load'
 import type { LoadedWorkspaceLayout } from '../../shared/workspace-layout/workspace-layout-load-types'
@@ -28,40 +31,18 @@ import {
   applyLayoutTransition,
   type LayoutTransition
 } from '../../shared/workspace-layout/workspace-layout-transitions'
-import { RuntimePaneStartAttempts } from './runtime-pane-start-attempts'
+import { RuntimePaneStartAttempts, type PaneStart } from './runtime-pane-start-attempts'
 import {
   emptyPublishedWorkspace,
   holderPaneFacts,
   tabHasOtherBoundPane,
   terminalLeafIds,
-  type TerminalFacts
+  type RuntimeWorkspaceLayoutsDeps
 } from './runtime-workspace-layout-pane-facts'
 import { RuntimeWorkspaceLayoutPublication } from './runtime-workspace-layout-publication'
-import { RuntimeWorkspaceLayoutWriter, type HolderStore } from './runtime-workspace-layout-writer'
-
-export type RuntimeWorkspaceLayoutsDeps = {
-  store: () => HolderStore | null
-  /** The partition that owns a workspace key; null when none does. */
-  homeHostId: (key: string) => ExecutionHostId | null
-  /** A partition an orcad conversion froze for downgrade; it can be fenced mid-session. */
-  isFrozenPartition: (hostId: ExecutionHostId) => boolean
-  /** What the PTY registry knows of a bound pane's terminal. */
-  terminal: TerminalFacts
-  stopTerminals: (ptyIds: readonly string[]) => void
-}
-
-/** A start the apply asked for, with the attempt token its spawn completion must carry. */
-export type PaneStart = { paneKey: string; attempt: string }
+import { DURABLE_COMMANDS, RuntimeWorkspaceLayoutWriter } from './runtime-workspace-layout-writer'
 
 export type HolderApplied = Applied & { starts?: PaneStart[] }
-
-const durableCommands = new Set<LayoutCommand['type']>([
-  'createTerminalTab',
-  'splitPane',
-  'closePane',
-  'closeTabs',
-  'movePaneToNewTab'
-])
 
 export class RuntimeWorkspaceLayouts {
   private readonly partitions = new Map<ExecutionHostId, LoadedWorkspaceLayout>()
@@ -70,6 +51,7 @@ export class RuntimeWorkspaceLayouts {
   private readonly publication = new RuntimeWorkspaceLayoutPublication()
   readonly starts = new RuntimePaneStartAttempts()
   private readonly writer: RuntimeWorkspaceLayoutWriter
+  private externalWriteCheck: ((hostId: ExecutionHostId) => void) | null = null
 
   constructor(private readonly deps: RuntimeWorkspaceLayoutsDeps) {
     this.writer = new RuntimeWorkspaceLayoutWriter(deps.store)
@@ -125,7 +107,7 @@ export class RuntimeWorkspaceLayouts {
       now: Date.now,
       isStarting: (leafId) => this.starts.isStarting(leafId)
     })
-    return result.ok ? this.commit(hostId, result, durableCommands.has(command.type)) : result
+    return result.ok ? this.commit(hostId, result, DURABLE_COMMANDS.has(command.type)) : result
   }
 
   transition(hostId: ExecutionHostId, transition: LayoutTransition): HolderApplied {
@@ -141,8 +123,8 @@ export class RuntimeWorkspaceLayouts {
   findTerminalTab(
     terminalTabId: string
   ): { hostId: ExecutionHostId; workspace: string; tabId: string } | null {
-    for (const [hostId, loaded] of this.partitions) {
-      const location = findTerminalTab(loaded.layout, terminalTabId)
+    for (const hostId of this.loadedHostIds()) {
+      const location = findTerminalTab(this.partition(hostId)!.layout, terminalTabId)
       if (location) {
         return { hostId, workspace: location.workspaceKey, tabId: location.tab.id }
       }
@@ -164,7 +146,7 @@ export class RuntimeWorkspaceLayouts {
     hostId: ExecutionHostId,
     started: { workspace: string; paneKey: string; ptyId: string; incarnationId?: string },
     attempt: string
-  ): 'bound' | 'superseded' | 'refused' {
+  ): 'bound' | 'superseded' | LayoutRefusalCode {
     const leafId = parsePaneKey(started.paneKey)?.leafId
     if (!leafId || !this.starts.settle(leafId, attempt)) {
       return 'superseded'
@@ -176,7 +158,7 @@ export class RuntimeWorkspaceLayouts {
       // The attempt ended either way; its pane is no longer starting.
       this.republish(hostId, started.workspace)
     }
-    return result.ok ? 'bound' : 'refused'
+    return result.ok ? 'bound' : result.code
   }
 
   /**
@@ -264,14 +246,24 @@ export class RuntimeWorkspaceLayouts {
   /** Replaces a partition loaded from a write this holder did not make (stack-internal bridge). */
   replacePartition(
     hostId: ExecutionHostId,
-    loaded: LoadedWorkspaceLayout,
-    changedKeys: readonly string[]
+    session: WorkspaceSessionState,
+    loaded: LoadedWorkspaceLayout
   ): void {
+    const before = this.partitions.get(hostId)
     this.partitions.set(hostId, loaded)
-    this.writer.noteRead(hostId, this.deps.store()!.getWorkspaceSession(hostId))
-    for (const key of changedKeys) {
+    this.writer.noteRead(hostId, session)
+    const keys = new Set([
+      ...Object.keys(before?.layout.workspaces ?? {}),
+      ...Object.keys(loaded.layout.workspaces)
+    ])
+    for (const key of keys) {
       this.publish(key)
     }
+  }
+
+  /** Stack-internal bridge (deleted in 6g): reloads a held partition another writer changed. */
+  setExternalWriteCheck(check: (hostId: ExecutionHostId) => void): void {
+    this.externalWriteCheck = check
   }
 
   hostIdOf(key: string): ExecutionHostId | null {
@@ -279,9 +271,9 @@ export class RuntimeWorkspaceLayouts {
   }
 
   private partition(hostId: ExecutionHostId): LoadedWorkspaceLayout | null {
-    const existing = this.partitions.get(hostId)
-    if (existing) {
-      return existing
+    if (this.partitions.has(hostId)) {
+      this.externalWriteCheck?.(hostId)
+      return this.partitions.get(hostId)!
     }
     const store = this.deps.store()
     if (!store || !this.holds(hostId)) {

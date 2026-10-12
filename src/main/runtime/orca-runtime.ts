@@ -33,6 +33,7 @@ import { getRepoExecutionHostId, toSshExecutionHostId } from '../../shared/execu
 import { UNVERIFIED_PROCESS_EXIT_CODE } from '../../shared/terminal-exit-cause'
 import { FLOATING_TERMINAL_WORKTREE_ID } from '../../shared/constants'
 import { folderWorkspaceKey } from '../../shared/workspace-scope'
+import { getRepoMainWorktreeId } from '../../shared/worktree/id'
 
 function holderStore(store: RuntimeStore | null): (HolderStore & RuntimeStore) | null {
   const { getWorkspaceSession, getWorkspaceSessionHostIds, setWorkspaceSession } = store ?? {}
@@ -127,9 +128,13 @@ class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
     const store = holderStore(this.store)
     // Before any RPC server starts: every caller of this runtime reads the loaded holder.
     this.layoutHolder.load()
+    // What the Store knows now; a worktree only a scan finds joins when the scan lands, before
+    // any window or client lists it.
     this.addCatalogWorkspaces([
       FLOATING_TERMINAL_WORKTREE_ID,
-      ...(this.store?.getFolderWorkspaces?.() ?? []).map((folder) => folderWorkspaceKey(folder.id))
+      ...(this.store?.getFolderWorkspaces?.() ?? []).map((folder) => folderWorkspaceKey(folder.id)),
+      ...(this.store?.getRepos() ?? []).map((repo) => getRepoMainWorktreeId(repo)),
+      ...Object.keys(this.store?.getAllWorktreeMetaForHost?.('local') ?? {})
     ])
     this.resolvedWorktrees.onResolved = (snapshot) =>
       this.addCatalogWorkspaces(snapshot.worktrees.map((worktree) => worktree.id))

@@ -5,7 +5,6 @@
 // Deleted in 6g with the last external writer.
 
 import { loadWorkspaceLayout } from '../../shared/workspace-layout/workspace-layout-load'
-import { stableJson } from '../../shared/workspace-layout/workspace-layout-load-report'
 import { nameBasedLoadContext } from '../../shared/workspace-layout/workspace-layout-minted-ids'
 import type { RuntimeWorkspaceLayouts } from './runtime-workspace-layouts'
 import type { HolderStore } from './runtime-workspace-layout-writer'
@@ -34,12 +33,7 @@ export function reloadHolderOnExternalWrites(
         ...Object.keys(before.workspaces),
         ...Object.keys(loaded.layout.workspaces)
       ])
-      const changed = [...keys].filter(
-        (key) =>
-          stableJson(before.workspaces[key] ?? null) !==
-          stableJson(loaded.layout.workspaces[key] ?? null)
-      )
-      holder.replacePartition(hostId, loaded, changed)
+      holder.replacePartition(hostId, loaded, [...keys])
     }
   })
 }

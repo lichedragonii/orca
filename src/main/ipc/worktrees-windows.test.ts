@@ -305,6 +305,7 @@ describe('registerWorktreeHandlers – Windows path handling', () => {
       getOrStartRemoteFetch: vi.fn().mockResolvedValue({ ok: true }),
       fetchRemoteWithCache: vi.fn().mockResolvedValue(undefined),
       emitWorktreeBaseStatus: vi.fn(),
+      addCatalogWorkspaces: vi.fn(),
       recordOptimisticReconcileToken: vi.fn().mockReturnValue('token-1'),
       reconcileWorktreeBaseStatus: vi.fn(),
       clearOptimisticReconcileToken: vi.fn(),

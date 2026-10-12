@@ -226,7 +226,7 @@ describe('holder-external-write-reload (stack-internal bridge)', () => {
     store.setWorkspaceSession(external, 'local')
 
     expect(holder.published(GIT_KEY)?.tabs[0]?.customTitle).toBe('Renamed by the window')
-    expect(events.length).toBe(ownSaves + 1)
+    expect(events.slice(ownSaves).map((event) => event.key)).toEqual([GIT_KEY])
     expect(panesOf(holder)?.[0]?.status).toBe('starting')
     expect(holder.starts.isStarting(leaf(1))).toBe(true)
     expect(start.attempt).toBeTruthy()

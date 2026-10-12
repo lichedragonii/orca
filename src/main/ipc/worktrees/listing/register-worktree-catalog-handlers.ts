@@ -63,6 +63,15 @@ async function mapWithConcurrency<T, R>(
   return results
 }
 
+/** A worktree the window can list is in the runtime's layout catalog before the window sees it. */
+function publishedToLayoutCatalog<T extends Worktree>(
+  context: WorktreeIpcContext,
+  worktrees: T[]
+): T[] {
+  context.runtime.addCatalogWorkspaces(worktrees.map((worktree) => worktree.id))
+  return worktrees
+}
+
 export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): void {
   const { store } = context
 
@@ -143,7 +152,7 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
       }
     })
 
-    return results.flat()
+    return publishedToLayoutCatalog(context, results.flat())
   })
 
   ipcMain.handle('worktrees:listRetiredNames', async (_event, args: { repoId: string }) => {
@@ -154,7 +163,11 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
     return getRetiredNameRegistryForRepo(store, repo, store.getRepos(), store.getSettings())
   })
 
-  ipcMain.handle('worktrees:list', async (_event, args: { repoId: string } | undefined) => {
+  ipcMain.handle('worktrees:list', async (_event, args: { repoId: string } | undefined) =>
+    publishedToLayoutCatalog(context, await listRepoWorktrees(args))
+  )
+
+  const listRepoWorktrees = async (args: { repoId: string } | undefined): Promise<Worktree[]> => {
     // Renderer startup can race repo selection; malformed requests must fail closed, not crash the handler.
     const repoId = typeof args?.repoId === 'string' ? args.repoId : ''
     if (!repoId) {
@@ -209,5 +222,5 @@ export function registerWorktreeCatalogHandlers(context: WorktreeIpcContext): vo
       // Why: see worktrees:listAll catch — seeding an empty-success result would poison the auth cache and block linked worktrees.
       return []
     }
-  })
+  }
 }

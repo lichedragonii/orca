@@ -8,6 +8,7 @@ export type WorktreeRuntimeStub = {
   getOrStartRemoteFetch: ReturnType<typeof vi.fn>
   fetchRemoteWithCache: ReturnType<typeof vi.fn>
   emitWorktreeBaseStatus: ReturnType<typeof vi.fn>
+  addCatalogWorkspaces: ReturnType<typeof vi.fn>
   recordOptimisticReconcileToken: ReturnType<typeof vi.fn>
   reconcileWorktreeBaseStatus: ReturnType<typeof vi.fn>
   clearOptimisticReconcileToken: ReturnType<typeof vi.fn>
@@ -35,6 +36,7 @@ export function createWorktreeRuntimeStub(mainWindow?: {
     getOrStartRemoteFetch: vi.fn().mockResolvedValue({ ok: true }),
     fetchRemoteWithCache: vi.fn().mockResolvedValue(undefined),
     emitWorktreeBaseStatus: vi.fn(),
+    addCatalogWorkspaces: vi.fn(),
     recordOptimisticReconcileToken: vi.fn().mockReturnValue('token-1'),
     reconcileWorktreeBaseStatus: vi.fn(),
     clearOptimisticReconcileToken: vi.fn(),

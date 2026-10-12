@@ -33,7 +33,7 @@ export class OrcaRuntimeWithGetWorktreeTerminalProvisioningHost extends OrcaRunt
         // agent title, which would hide the agent's own titles and status for the pane's life.
         this.notifier?.renameTerminal(tabId, title, { recordInteraction: false })
         if (!this.getAvailableAuthoritativeWindow()) {
-          this.persistHeadlessTerminalTitle(worktreeId, tabId, title)
+          this.persistHeadlessTerminalTitle(tabId, title)
           this.applyHeadlessSessionTabPropsToSnapshot(worktreeId, tabId, { title })
         }
       },

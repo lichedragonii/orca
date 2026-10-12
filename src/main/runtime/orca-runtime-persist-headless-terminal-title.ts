@@ -20,26 +20,8 @@ import { isFloatingWorkspaceSelector } from '../../shared/floating-workspace-wor
 export class OrcaRuntimeWithPersistHeadlessTerminalTitle extends OrcaRuntimeWithMoveHeadlessMobileSessionTab {
   // Persist a manual terminal rename so a headless rebuild keeps the title
   // instead of reverting to the generated/default one.
-  protected persistHeadlessTerminalTitle(
-    worktreeId: string,
-    tabId: string,
-    title: string | null
-  ): void {
-    const session = this.getWorkspaceSessionForWorktree(worktreeId)
-    if (!session || !this.store?.setWorkspaceSession) {
-      return
-    }
-    const tabs = session.tabsByWorktree[worktreeId]
-    if (!tabs?.some((tab) => tab.id === tabId)) {
-      return
-    }
-    this.setWorkspaceSessionForWorktree(worktreeId, {
-      ...session,
-      tabsByWorktree: {
-        ...session.tabsByWorktree,
-        [worktreeId]: tabs.map((tab) => (tab.id === tabId ? { ...tab, customTitle: title } : tab))
-      }
-    })
+  protected persistHeadlessTerminalTitle(tabId: string, title: string | null): void {
+    this.paneTitleFacts.setCustomTitle(tabId, title)
   }
 
   protected normalizeMobileSessionTabOrder(

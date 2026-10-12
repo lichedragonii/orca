@@ -217,7 +217,7 @@ export class OrcaRuntimeWithResolveWorktreeRemovalTarget extends OrcaRuntimeWith
       // Why: without a renderer the rename only lived on the live pty and was
       // lost on restart. Persist customTitle so a headless rebuild keeps it.
       if (!this.notifier?.renameTerminal && pty.pty.tabId) {
-        this.persistHeadlessTerminalTitle(pty.pty.worktreeId, pty.pty.tabId, title)
+        this.persistHeadlessTerminalTitle(pty.pty.tabId, title)
       }
       for (const leaf of this.leaves.values()) {
         if (leaf.ptyId === pty.pty.ptyId) {
@@ -228,7 +228,7 @@ export class OrcaRuntimeWithResolveWorktreeRemovalTarget extends OrcaRuntimeWith
       const tabId = pty.pty.tabId ?? pty.record.tabId
       // A notifier can exist before its pane graph; retain the rename on the known tab.
       if (this.notifier?.renameTerminal && tabId) {
-        this.persistHeadlessTerminalTitle(pty.pty.worktreeId, tabId, title)
+        this.persistHeadlessTerminalTitle(tabId, title)
         this.notifier.renameTerminal(tabId, title)
       }
       return { handle, tabId, title }

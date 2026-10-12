@@ -258,4 +258,19 @@ describe('concurrent commands, both orders', () => {
       expect(leavesOf(result.model, tabId)).toBe('closed')
     }
   })
+
+  it('puts an adopted workspace layout in place, under its id when it was stored under another spelling', () => {
+    const { model } = setup()
+    const adopted = model.workspaces[WS]!
+    const result = applyLayoutTransition(model, {
+      type: 'orphansAdopted',
+      from: WS,
+      workspace: 'repo-1::/canonical',
+      adopted: { ...adopted, worktreeId: 'repo-1::/canonical' }
+    })
+    expect(result.ok && Object.keys(result.model.workspaces)).toEqual(['repo-1::/canonical'])
+    expect(result.ok && result.model.legacy.terminalRowOwners).toEqual({
+      'repo-1::/canonical': true
+    })
+  })
 })

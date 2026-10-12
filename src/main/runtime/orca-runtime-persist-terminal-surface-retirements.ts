@@ -26,7 +26,7 @@ export class OrcaRuntimeWithPersistTerminalSurfaceRetirements extends OrcaRuntim
     for (const surface of retiredSurfaces) {
       const hostId =
         this.tryGetWorkspaceSessionHostIdForWorktree(surface.worktreeId) ?? LOCAL_EXECUTION_HOST_ID
-      if (!this.workspaceLayouts.model(hostId)) {
+      if (!this.layoutHolder.model(hostId)) {
         unpersisted.push(surface)
         continue
       }
@@ -37,7 +37,7 @@ export class OrcaRuntimeWithPersistTerminalSurfaceRetirements extends OrcaRuntim
         ptyId: surface.ptyId,
         ...(surface.incarnationId ? { incarnationId: surface.incarnationId } : {})
       }
-      if (this.workspaceLayouts.processExited(hostId, exited, exit) === 'gone') {
+      if (this.layoutHolder.processExited(hostId, exited, exit) === 'gone') {
         accepted.push(surface)
       }
     }

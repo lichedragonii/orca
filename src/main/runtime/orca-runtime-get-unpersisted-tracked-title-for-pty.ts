@@ -96,6 +96,9 @@ export class OrcaRuntimeWithGetUnpersistedTrackedTitleForPty extends OrcaRuntime
             })
           }
           const changed = this.applyTrackedPtyTitle(ptyId, rawTitle, normalizedTitle, meta)
+          if (changed) {
+            this.paneTitleFacts.terminalTitleObserved(ptyId)
+          }
           const identityOnlyTitle = this.isLiveCursorNativeTitle(rawTitle, meta)
           const tracksReplicatedStatus =
             live?.applyingChunk === true && this.mobileSessionTabListeners.size > 0

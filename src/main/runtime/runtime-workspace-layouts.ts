@@ -20,6 +20,7 @@ import {
 } from '../../shared/workspace-layout/workspace-layout-published'
 import type { ProcessExitFacts } from '../../shared/workspace-layout/workspace-layout-process-exit'
 import {
+  findTerminalTab,
   locateExitedSurface,
   type ExitedSurface
 } from '../../shared/workspace-layout/workspace-layout-removal'
@@ -134,6 +135,19 @@ export class RuntimeWorkspaceLayouts {
     }
     const result = applyLayoutTransition(loaded.layout, transition)
     return result.ok ? this.commit(hostId, result, true) : result
+  }
+
+  /** The workspace and tab-bar id of a terminal tab, by its terminal tab id. */
+  findTerminalTab(
+    terminalTabId: string
+  ): { hostId: ExecutionHostId; workspace: string; tabId: string } | null {
+    for (const [hostId, loaded] of this.partitions) {
+      const location = findTerminalTab(loaded.layout, terminalTabId)
+      if (location) {
+        return { hostId, workspace: location.workspaceKey, tabId: location.tab.id }
+      }
+    }
+    return null
   }
 
   /** A fresh attempt for a pane already in the layout, as when a start attaches to it. */

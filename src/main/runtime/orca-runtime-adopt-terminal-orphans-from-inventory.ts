@@ -20,6 +20,8 @@ import { adoptRuntimeTerminalOrphansFromInventory } from './runtime-terminal-orp
 import { getRepoIdFromWorktreeId } from '../../shared/worktree/id'
 import { getLatestPtyTitle } from './runtime-worktree-status-projection'
 import type { PtyLivenessVerdict } from '../../shared/pty-liveness-verdict'
+import { loadWorkspaceLayout } from '../../shared/workspace-layout/workspace-layout-load'
+import { nameBasedLoadContext } from '../../shared/workspace-layout/workspace-layout-minted-ids'
 
 export class OrcaRuntimeWithAdoptTerminalOrphansFromInventory extends OrcaRuntimeWithSubscribeToTerminalResize {
   protected async adoptTerminalOrphansFromInventoryUnderMutation(
@@ -29,11 +31,7 @@ export class OrcaRuntimeWithAdoptTerminalOrphansFromInventory extends OrcaRuntim
   ): Promise<RuntimeTerminalOrphanAdoptionResult> {
     const store = this.store
     const session = this.getWorkspaceSessionForWorktree(workspace.id)
-    if (
-      !store?.setWorkspaceSession ||
-      (!store.flushPendingOrThrowAsync && !store.flushOrThrow) ||
-      !session
-    ) {
+    if (!store?.getWorkspaceSession || !session) {
       throw new Error('workspace_session_unavailable')
     }
     const sessionWorktreeId = resolveTerminalSessionWorktreeId(session, workspace.id)
@@ -69,9 +67,17 @@ export class OrcaRuntimeWithAdoptTerminalOrphansFromInventory extends OrcaRuntim
         recordAdoptedSurface: (pty, tabId, paneKey) =>
           recordPtySurface(pty, tabId, paneKey, spawnSurfaceClaimSequence(this.graphSequence)),
         getMobileSnapshots: () => this.mobileSessionTabsByWorktree.values(),
-        getSession: (worktreeId) => this.getWorkspaceSessionForWorktree(worktreeId),
-        setSession: (worktreeId, next) => this.setWorkspaceSessionForWorktree(worktreeId, next),
-        flushSession: () => this.flushWorkspaceSessionOrThrowAsync(),
+        adoptSession: (from, adopted) => {
+          const hostId = this.getWorkspaceSessionHostIdForWorktree(workspace.id)
+          const { layout } = loadWorkspaceLayout(hostId, adopted, nameBasedLoadContext())
+          this.layoutHolder.transition(hostId, {
+            type: 'orphansAdopted',
+            from,
+            workspace: workspace.id,
+            adopted: layout.workspaces[workspace.id]
+          })
+          return this.store.getWorkspaceSession(hostId)
+        },
         hydrateSession: (worktreeId) =>
           this.hydrateHeadlessMobileSessionTabsFromWorkspaceSession(worktreeId, {
             force: true,

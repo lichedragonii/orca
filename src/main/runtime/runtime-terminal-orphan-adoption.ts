@@ -14,7 +14,6 @@ import { buildRuntimeTerminalOrphanSession } from './runtime-terminal-orphan-ses
 import { validateRuntimeTerminalOrphanTopology } from './runtime-terminal-orphan-topology-validation'
 import type { RuntimeLeafRecord, RuntimePtyWorktreeRecord } from './runtime-terminal-state-records'
 import { runtimeWorktreeIdsEqual } from './runtime-worktree-path-identity'
-import { rollbackWorkspaceSessionAfterFailedAsyncWrite } from '../persistence/restoring-sessions/workspace-session-write-rollback'
 
 type RuntimeTerminalOrphanAdoptionPorts = {
   getPty: (handle: string) => RuntimePtyWorktreeRecord | null
@@ -27,9 +26,8 @@ type RuntimeTerminalOrphanAdoptionPorts = {
   /** Names a pane this adoption just wrote, ahead of the graph statement that will carry it. */
   recordAdoptedSurface: (pty: RuntimePtyWorktreeRecord, tabId: string, paneKey: string) => void
   getMobileSnapshots: () => Iterable<RuntimeMobileSessionTabsSnapshot>
-  getSession: (worktreeId: string) => WorkspaceSessionState | null
-  setSession: (worktreeId: string, session: WorkspaceSessionState) => void
-  flushSession: () => Promise<void>
+  /** Applies the adopted layout in the holder; returns the partition as saved after it. */
+  adoptSession: (from: string, adopted: WorkspaceSessionState) => WorkspaceSessionState | null
   hydrateSession: (worktreeId: string) => void
   notifySessionChanged: (worktreeId: string) => void
   getSnapshot: (worktreeId: string) => RuntimeMobileSessionTabsResult
@@ -230,21 +228,7 @@ export async function adoptRuntimeTerminalOrphansFromInventory(args: {
     topologyGroups,
     getDisplayTitle: ports.getDisplayTitle
   })
-  let staged: WorkspaceSessionState | null = null
-  try {
-    ports.setSession(workspace.id, persisted)
-    staged = ports.getSession(workspace.id)
-    await ports.flushSession()
-  } catch (error) {
-    const current = ports.getSession(workspace.id)
-    if (staged && current) {
-      const rolledBack = rollbackWorkspaceSessionAfterFailedAsyncWrite(session, staged, current)
-      if (rolledBack !== current) {
-        ports.setSession(workspace.id, rolledBack)
-      }
-    }
-    throw error
-  }
+  const saved = ports.adoptSession(sessionWorktreeId, persisted)
   for (const { claim, pty, paneKey } of validated) {
     ports.recordAdoptedSurface(pty, claim.tabId, paneKey)
   }
@@ -252,8 +236,7 @@ export async function adoptRuntimeTerminalOrphansFromInventory(args: {
   ports.notifySessionChanged(workspace.id)
   return {
     adopted: true,
-    topologyRevision:
-      persisted.terminalTopologyRevisionByRepoId?.[args.repoId] ?? currentRevision + 1,
+    topologyRevision: saved?.terminalTopologyRevisionByRepoId?.[args.repoId] ?? currentRevision + 1,
     snapshot: ports.getSnapshot(workspace.id)
   }
 }

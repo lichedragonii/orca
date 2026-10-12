@@ -16,6 +16,7 @@ import { createAgentLaunchRecordWarmupGate } from './agent-launch-record-warmup-
 import { RuntimeWorkspaceLayouts } from './runtime-workspace-layouts'
 import type { HolderStore } from './runtime-workspace-layout-writer'
 import { reloadHolderOnExternalWrites } from './holder-external-write-reload'
+import { PaneTitleFacts } from './pane-title-facts'
 import { isFrozenOrcadSourceSessionPartition } from '../ssh/orcad-retained-source'
 import type { RuntimeStore } from './runtime-store-contract'
 import type { RemoteLayoutSnapshot } from '../../shared/remote-layout-snapshot'
@@ -40,7 +41,7 @@ function holderStore(store: RuntimeStore | null): (HolderStore & RuntimeStore) |
 
 class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
   /** The one copy of every host partition's tab layout (PR 6). */
-  protected readonly workspaceLayouts = new RuntimeWorkspaceLayouts({
+  protected readonly layoutHolder = new RuntimeWorkspaceLayouts({
     store: () => holderStore(this.store),
     homeHostId: (key) => this.tryGetWorkspaceSessionHostIdForWorktree(key),
     isFrozenPartition: (hostId) => {
@@ -123,9 +124,9 @@ class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
     registerWorktreeChangeInvalidator((repoId) => this.invalidateWorktreeCatalog(repoId))
     const store = holderStore(this.store)
     // Before any RPC server starts: every caller of this runtime reads the loaded holder.
-    this.workspaceLayouts.load()
+    this.layoutHolder.load()
     if (store?.onWorkspaceSessionWritten) {
-      reloadHolderOnExternalWrites(this.workspaceLayouts, {
+      reloadHolderOnExternalWrites(this.layoutHolder, {
         ...store,
         onWorkspaceSessionWritten: store.onWorkspaceSessionWritten
       })
@@ -177,6 +178,8 @@ class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
     return this.getPtyRecordForPaneKey(paneKey)?.connected === true
   }
 
+  protected readonly paneTitleFacts = new PaneTitleFacts(this.layoutHolder)
+
   /** Attach found no process for this pane: never proof that it exited, so the pane stays, unbound. */
   unbindAbsentTerminal(pane: {
     worktreeId: string
@@ -187,7 +190,7 @@ class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
     incarnationId?: string
   }): 'gone' | 'kept' | 'replaced' {
     const hostId = pane.connectionId ? toSshExecutionHostId(pane.connectionId) : 'local'
-    return this.workspaceLayouts.processExited(
+    return this.layoutHolder.processExited(
       hostId,
       {
         worktreeId: pane.worktreeId,
@@ -212,7 +215,7 @@ class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
   subscribeWorkspaceLayouts(
     listener: Parameters<RuntimeWorkspaceLayouts['subscribe']>[0]
   ): ReturnType<RuntimeWorkspaceLayouts['subscribe']> {
-    return this.workspaceLayouts.subscribe(listener)
+    return this.layoutHolder.subscribe(listener)
   }
 
   /** This desktop's display-only copy of each paired server's layout (`layout.getRemoteSnapshots`). */

@@ -2,6 +2,7 @@ import type { Worker } from 'node:worker_threads'
 import type { ModelManager } from './model-manager'
 import type { OpenAiTranscriptionSession } from './openai-transcription-client'
 import type { SttEventSink } from './stt-service'
+import type { VoiceSettings } from '../../shared/speech-types'
 
 export type StopInFlight = {
   worker: Worker
@@ -13,6 +14,7 @@ export type SttSessionState = {
   worker: Worker | null
   cloudSession: OpenAiTranscriptionSession | null
   modelManager: ModelManager
+  readVoiceSettings: () => VoiceSettings | undefined
   activeModelId: string | null
   activeHotwordsFilePath: string | undefined
   activeOwner: string | null
@@ -27,11 +29,15 @@ export type SttSessionState = {
   cleanupWorkerLifecycleListeners: (() => void) | null
 }
 
-export function createSttSessionState(modelManager: ModelManager): SttSessionState {
+export function createSttSessionState(
+  modelManager: ModelManager,
+  readVoiceSettings: () => VoiceSettings | undefined
+): SttSessionState {
   return {
     worker: null,
     cloudSession: null,
     modelManager,
+    readVoiceSettings,
     activeModelId: null,
     activeHotwordsFilePath: undefined,
     activeOwner: null,

@@ -13,7 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '../ui/dropdown-menu'
-import { Cloud, Download, Trash2, Loader2, ChevronDown, Check } from 'lucide-react'
+import { Cloud, Download, Trash2, Loader2, ChevronDown, Check, Server } from 'lucide-react'
 import { translate } from '@/i18n/i18n'
 
 function describeSpeechModelDownloadError(error: unknown): string {
@@ -84,7 +84,8 @@ export function VoiceSpeechModelSection({
             const isDownloading =
               mState?.status === 'downloading' || mState?.status === 'extracting'
             const isActive = voiceSettings.sttModel === manifest.id
-            const isCloud = manifest.provider === 'openai'
+            // Why: remote models (OpenAI, self-hosted) have nothing to download or delete.
+            const isCloud = manifest.provider !== 'local'
             const deletePending = pendingDeleteModelIds.has(manifest.id)
             const sizeMb = manifest.sizeBytes ? Math.round(manifest.sizeBytes / 1_000_000) : null
 
@@ -95,7 +96,7 @@ export function VoiceSpeechModelSection({
                 onSelect={(event) => {
                   if (isReady) {
                     onUpdateVoiceSettings({ sttModel: manifest.id })
-                  } else if (isCloud) {
+                  } else if (manifest.provider === 'openai') {
                     onOpenOpenAiDialog(manifest.id)
                   } else if (!isDownloading) {
                     // Why: download progress appears in this menu, so starting one should not dismiss it.
@@ -122,6 +123,8 @@ export function VoiceSpeechModelSection({
                     <Check className="size-3.5" />
                   ) : isDownloading ? (
                     <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+                  ) : manifest.provider === 'self-hosted' ? (
+                    <Server className="size-3.5 text-muted-foreground" />
                   ) : isCloud ? (
                     <Cloud className="size-3.5 text-muted-foreground" />
                   ) : null}

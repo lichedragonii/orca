@@ -18,7 +18,10 @@ type SpeechSettingsStore = {
 
 export type SpeechServiceFactories = {
   createModelManager(customModelsDir: string | undefined): ModelManager
-  createSttService(models: ModelManager): SttService
+  createSttService(
+    models: ModelManager,
+    readVoiceSettings: () => VoiceSettings | undefined
+  ): SttService
 }
 
 let factories: SpeechServiceFactories | null = null
@@ -49,7 +52,10 @@ export function getSpeechModelManager(store: SpeechSettingsStore): ModelManager 
 
 export function getSpeechSttService(store: SpeechSettingsStore): SttService {
   if (!sttService) {
-    sttService = requireFactories().createSttService(getSpeechModelManager(store))
+    sttService = requireFactories().createSttService(
+      getSpeechModelManager(store),
+      () => store.getSettings().voice
+    )
   }
   return sttService
 }

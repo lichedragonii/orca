@@ -83,8 +83,10 @@ const {
     feedCalls: { samples: Float32Array; sampleRate: number }[] = []
 
     constructor(
-      readonly modelId: string,
-      readonly readApiKey: () => string
+      readonly resolveTarget: () => {
+        model: string | null
+        apiKey: string | null
+      }
     ) {
       HoistedMockOpenAiTranscriptionSession.instances.push(this)
     }
@@ -94,7 +96,8 @@ const {
     }
 
     finish(): Promise<string> {
-      return Promise.resolve(`${this.modelId}:${this.readApiKey()}`)
+      const target = this.resolveTarget()
+      return Promise.resolve(`${target.model}:${target.apiKey}`)
     }
   }
 
@@ -130,11 +133,11 @@ vi.mock('worker_threads', () => ({
 
 vi.mock('./model-catalog', () => ({
   getCatalogModel: (id: string) =>
-    id === 'openai-model'
+    id === 'openai-model' || id === 'self-hosted-model'
       ? {
           id,
           type: 'openai',
-          provider: 'openai',
+          provider: id === 'openai-model' ? 'openai' : 'self-hosted',
           streaming: false,
           sampleRate: 16000
         }
@@ -153,7 +156,13 @@ vi.mock('./openai-api-key-store', () => ({
 }))
 
 vi.mock('./openai-transcription-client', () => ({
-  OpenAiTranscriptionSession: MockOpenAiTranscriptionSession
+  OpenAiTranscriptionSession: MockOpenAiTranscriptionSession,
+  resolveOpenAiTranscriptionTarget: (modelId: string, readApiKey: () => string) => ({
+    kind: 'openai',
+    url: 'https://api.openai.com/v1/audio/transcriptions',
+    model: modelId,
+    apiKey: readApiKey()
+  })
 }))
 
 import {
@@ -162,6 +171,15 @@ import {
   SttService,
   type SttEventSink
 } from './stt-service'
+import { getDefaultVoiceSettings } from '../../shared/constants'
+
+function readySelfHostedModels(): ModelManager {
+  // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: the self-hosted path calls only getModelState; getModelDir is the same stub the other cases use.
+  return {
+    getModelState: vi.fn().mockResolvedValue({ id: 'self-hosted-model', status: 'ready' }),
+    getModelDir: vi.fn().mockReturnValue('/tmp/model-a')
+  } as unknown as ModelManager
+}
 
 describe('SttService', () => {
   beforeEach(() => {
@@ -369,6 +387,37 @@ describe('SttService', () => {
     await service.stopDictation('desktop')
 
     expect(readOpenAiSpeechApiKeyMock).toHaveBeenCalledOnce()
+  })
+
+  it('sends self-hosted dictation to the configured server without creating a worker', async () => {
+    const sink = vi.fn()
+    const service = new SttService(readySelfHostedModels(), () => ({
+      ...getDefaultVoiceSettings(),
+      selfHostedSpeechUrl: 'http://asr-host:8002',
+      selfHostedSpeechModel: 'Qwen/Qwen3-ASR-1.7B'
+    }))
+
+    await service.startDictation('self-hosted-model', sink, undefined, 'desktop')
+    service.feedAudio(new Float32Array([0.25]), 16000, 'desktop')
+    await service.stopDictation('desktop')
+
+    expect(getCreatedWorkerCount()).toBe(0)
+    expect(getCloudSessions()).toHaveLength(1)
+    expect(sink).toHaveBeenCalledWith({
+      type: 'final',
+      text: 'Qwen/Qwen3-ASR-1.7B:null'
+    })
+    expect(readOpenAiSpeechApiKeyMock).not.toHaveBeenCalled()
+  })
+
+  it('refuses to start self-hosted dictation before a server URL is configured', async () => {
+    const service = new SttService(readySelfHostedModels(), () => getDefaultVoiceSettings())
+
+    await expect(
+      service.startDictation('self-hosted-model', vi.fn(), undefined, 'desktop')
+    ).rejects.toThrow('Self-hosted transcription server URL is not configured')
+    expect(getCloudSessions()).toHaveLength(0)
+    expect(service.isActive()).toBe(false)
   })
 
   it('keeps startup cancellation tombstoned after the worker has been created', async () => {

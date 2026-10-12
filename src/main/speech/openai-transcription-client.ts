@@ -8,6 +8,38 @@ export const OPENAI_TRANSCRIPTION_MODEL_BY_ID: Record<string, string> = {
 const OPENAI_TRANSCRIPTION_URL = 'https://api.openai.com/v1/audio/transcriptions'
 const CLOUD_TRANSCRIPTION_SAMPLE_RATE = 16000
 const MAX_CLOUD_AUDIO_SECONDS = 10 * 60
+// Qwen3-ASR behind plain vLLM prefixes `language Korean\n` or `language Korean<asr_text>`.
+const ASR_LANGUAGE_PREFIX = /^language\s+\S+?[,\s]*(?:\n|<asr_text>)/i
+
+export type TranscriptionTarget = {
+  kind: 'openai' | 'self-hosted'
+  url: string
+  /** null omits the multipart `model` field. */
+  model: string | null
+  apiKey: string | null
+  /** Unset waits as long as fetch does. */
+  timeoutMs?: number
+}
+
+export function resolveOpenAiTranscriptionTarget(
+  modelId: string,
+  readApiKey: () => string
+): TranscriptionTarget {
+  const apiModel = OPENAI_TRANSCRIPTION_MODEL_BY_ID[modelId]
+  if (!apiModel) {
+    throw new Error(`Unknown OpenAI transcription model: ${modelId}`)
+  }
+  return {
+    kind: 'openai',
+    url: OPENAI_TRANSCRIPTION_URL,
+    model: apiModel,
+    apiKey: readApiKey()
+  }
+}
+
+export function stripAsrLanguagePrefix(text: string): string {
+  return text.replace(ASR_LANGUAGE_PREFIX, '').trim()
+}
 
 type OpenAiTranscriptionResponse = {
   text?: unknown
@@ -67,24 +99,42 @@ function combineChunks(chunks: Float32Array[]): Float32Array {
   return combined
 }
 
-function parseOpenAiTranscriptionResponse(data: OpenAiTranscriptionResponse): string {
+function parseOpenAiTranscriptionResponse(
+  data: OpenAiTranscriptionResponse,
+  target: TranscriptionTarget
+): string {
   if (typeof data.text === 'string') {
-    return data.text.trim()
+    return target.kind === 'self-hosted' ? stripAsrLanguagePrefix(data.text) : data.text.trim()
   }
   if (typeof data.error?.message === 'string') {
     throw new Error(sanitizeOpenAiTranscriptionErrorMessage(data.error.message))
   }
-  throw new Error('OpenAI transcription response did not include text')
+  throw new Error(`${transcriptionLabel(target)} transcription response did not include text`)
+}
+
+function transcriptionLabel(target: TranscriptionTarget): string {
+  return target.kind === 'self-hosted' ? 'Self-hosted' : 'OpenAI'
+}
+
+function describeFetchFailure(error: unknown, timeoutMs: number | undefined): string {
+  if (error instanceof Error && error.name === 'TimeoutError') {
+    return `no response within ${Math.round((timeoutMs ?? 0) / 1000)}s`
+  }
+  // Node's fetch reports "fetch failed" and keeps the socket error (ECONNREFUSED, ENOTFOUND) in cause.
+  const cause = error instanceof Error ? error.cause : undefined
+  if (cause instanceof Error) {
+    const code = 'code' in cause && typeof cause.code === 'string' ? cause.code : null
+    return code ?? cause.message
+  }
+  return error instanceof Error ? error.message : String(error)
 }
 
 export class OpenAiTranscriptionSession {
   private chunks: Float32Array[] = []
   private audioSeconds = 0
 
-  constructor(
-    private readonly modelId: string,
-    private readonly readApiKey: () => string
-  ) {}
+  // Why: resolved at finish so the key (keychain prompt) and server URL are read only when sending.
+  constructor(private readonly resolveTarget: () => TranscriptionTarget) {}
 
   feedAudio(samples: Float32Array, sampleRate: number): void {
     const normalized = resampleToRate(samples, sampleRate, CLOUD_TRANSCRIPTION_SAMPLE_RATE)
@@ -100,28 +150,35 @@ export class OpenAiTranscriptionSession {
       return ''
     }
 
-    const apiModel = OPENAI_TRANSCRIPTION_MODEL_BY_ID[this.modelId]
-    if (!apiModel) {
-      throw new Error(`Unknown OpenAI transcription model: ${this.modelId}`)
-    }
-
+    const target = this.resolveTarget()
     const audio = combineChunks(this.chunks)
     this.chunks = []
     const wav = encodePcm16Wav(audio, CLOUD_TRANSCRIPTION_SAMPLE_RATE)
     const form = new FormData()
-    form.append('model', apiModel)
+    if (target.model) {
+      form.append('model', target.model)
+    }
     form.append('response_format', 'json')
     // Why: OpenAI's transcription endpoint expects a multipart file object;
     // a named WAV blob avoids filesystem temp files and works in packaged apps.
     form.append('file', new Blob([new Uint8Array(wav)], { type: 'audio/wav' }), 'dictation.wav')
 
-    const response = await fetch(OPENAI_TRANSCRIPTION_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.readApiKey()}`
-      },
-      body: form
-    })
+    let response: Response
+    try {
+      response = await fetch(target.url, {
+        method: 'POST',
+        headers: target.apiKey ? { Authorization: `Bearer ${target.apiKey}` } : {},
+        body: form,
+        signal: target.timeoutMs ? AbortSignal.timeout(target.timeoutMs) : undefined
+      })
+    } catch (error) {
+      if (target.kind !== 'self-hosted') {
+        throw error
+      }
+      throw new Error(
+        `Could not reach the self-hosted transcription server at ${target.url} (${describeFetchFailure(error, target.timeoutMs)})`
+      )
+    }
 
     const data = (await response.json().catch(() => ({}))) as OpenAiTranscriptionResponse
     if (!response.ok) {
@@ -129,9 +186,9 @@ export class OpenAiTranscriptionSession {
         typeof data.error?.message === 'string'
           ? sanitizeOpenAiTranscriptionErrorMessage(data.error.message)
           : response.statusText
-      throw new Error(`OpenAI transcription failed: ${message}`)
+      throw new Error(`${transcriptionLabel(target)} transcription failed: ${message}`)
     }
 
-    return parseOpenAiTranscriptionResponse(data)
+    return parseOpenAiTranscriptionResponse(data, target)
   }
 }

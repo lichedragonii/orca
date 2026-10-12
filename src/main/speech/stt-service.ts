@@ -1,4 +1,5 @@
 import type { ModelManager } from './model-manager'
+import type { VoiceSettings } from '../../shared/speech-types'
 import { startSttDictation } from './stt-session-start'
 import { createSttSessionState, type SttSessionState } from './stt-session-state'
 import { prepareSttModelForDeletion, stopSttDictation } from './stt-session-stop'
@@ -17,8 +18,11 @@ export type SttEventSink = (event: SttEvent) => void
 export class SttService {
   private readonly state: SttSessionState
 
-  constructor(modelManager: ModelManager) {
-    this.state = createSttSessionState(modelManager)
+  constructor(
+    modelManager: ModelManager,
+    readVoiceSettings: () => VoiceSettings | undefined = () => undefined
+  ) {
+    this.state = createSttSessionState(modelManager, readVoiceSettings)
   }
 
   startDictation(

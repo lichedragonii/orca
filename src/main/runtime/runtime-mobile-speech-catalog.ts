@@ -39,7 +39,8 @@ export class RuntimeMobileSpeechCatalog {
       return {
         id: manifest.id,
         label: manifest.label,
-        provider: manifest.provider === 'openai' ? 'openai' : 'local',
+        // Why: mobile clients only know 'local' | 'openai'; 'openai' is the no-download remote case.
+        provider: manifest.provider === 'local' ? 'local' : 'openai',
         sizeBytes: manifest.sizeBytes ?? null,
         recommended: manifest.recommended === true,
         status: state?.status ?? 'not-downloaded',

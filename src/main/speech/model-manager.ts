@@ -106,6 +106,10 @@ export class ModelManager extends SpeechModelDownloadTransport {
     if (manifest.provider === 'openai') {
       return { id: modelId, status: this.hasOpenAiKey() ? 'ready' : 'not-downloaded' }
     }
+    // Why: nothing to download; a missing server URL is reported when dictation starts.
+    if (manifest.provider === 'self-hosted') {
+      return { id: modelId, status: 'ready' }
+    }
 
     const modelDir = this.getModelDir(modelId)
     if (existsSync(modelDir) && this.validateModelFiles(manifest, modelDir)) {

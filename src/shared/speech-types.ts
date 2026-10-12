@@ -5,7 +5,7 @@ export type SpeechModelType =
   | 'senseVoice'
   | 'nemo-ctc'
   | 'openai'
-export type SpeechModelProvider = 'local' | 'openai'
+export type SpeechModelProvider = 'local' | 'openai' | 'self-hosted'
 
 export type ModelingUnit = 'bpe' | 'cjkchar' | 'cjkchar+bpe'
 
@@ -79,4 +79,8 @@ export type VoiceSettings = {
   microphoneDeviceId: string | null
   /** Cached label for display when the preferred device is unplugged */
   microphoneDeviceLabel: string | null
+  /** OpenAI-compatible transcription server for the self-hosted model, e.g. `http://host:8002`. */
+  selfHostedSpeechUrl: string
+  /** Sent as the request's `model` field; empty omits it so the server uses its default. */
+  selfHostedSpeechModel: string
 }

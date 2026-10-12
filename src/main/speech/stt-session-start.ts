@@ -1,7 +1,11 @@
 import { Worker } from 'node:worker_threads'
 import { getCatalogModel } from './model-catalog'
-import { OpenAiTranscriptionSession } from './openai-transcription-client'
+import {
+  OpenAiTranscriptionSession,
+  resolveOpenAiTranscriptionTarget
+} from './openai-transcription-client'
 import { readOpenAiSpeechApiKey } from './openai-api-key-store'
+import { resolveSelfHostedTranscriptionTarget } from './self-hosted-transcription-target'
 import type { SttEventSink } from './stt-service'
 import type { SttSessionState } from './stt-session-state'
 import {
@@ -71,7 +75,11 @@ async function startSttSession(
     throw new Error(`Unknown model: ${modelId}`)
   }
 
-  if (manifest.provider === 'openai') {
+  if (manifest.provider !== 'local') {
+    if (manifest.provider === 'self-hosted') {
+      // Why: surface a missing or malformed server URL before the user starts speaking.
+      resolveSelfHostedTranscriptionTarget(state.readVoiceSettings())
+    }
     if (state.worker) {
       const existingWorker = state.worker
       await stopSttDictation(state, owner, { cancelStarting: false })
@@ -81,7 +89,11 @@ async function startSttSession(
     if (modelState.status !== 'ready') {
       throw new Error(`Model not ready: ${modelState.status}`)
     }
-    state.cloudSession = new OpenAiTranscriptionSession(modelId, readOpenAiSpeechApiKey)
+    state.cloudSession = new OpenAiTranscriptionSession(
+      manifest.provider === 'self-hosted'
+        ? () => resolveSelfHostedTranscriptionTarget(state.readVoiceSettings())
+        : () => resolveOpenAiTranscriptionTarget(modelId, readOpenAiSpeechApiKey)
+    )
     state.activeModelId = modelId
     state.activeHotwordsFilePath = undefined
     state.eventSink = sink

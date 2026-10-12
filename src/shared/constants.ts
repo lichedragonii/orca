@@ -135,7 +135,9 @@ export function getDefaultVoiceSettings(): VoiceSettings {
     userModels: [],
     openAiApiKeyConfigured: false,
     microphoneDeviceId: null,
-    microphoneDeviceLabel: null
+    microphoneDeviceLabel: null,
+    selfHostedSpeechUrl: '',
+    selfHostedSpeechModel: 'Qwen/Qwen3-ASR-1.7B'
   }
 }
 

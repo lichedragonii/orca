@@ -9,6 +9,7 @@ import { toast } from 'sonner'
 import { useAppStore } from '@/store'
 import { OpenAiTranscriptionKeyDialog } from './OpenAiTranscriptionKeyDialog'
 import { OpenAiTranscriptionSettingsRow } from './OpenAiTranscriptionSettingsRow'
+import { SelfHostedTranscriptionSettingsRow } from './SelfHostedTranscriptionSettingsRow'
 import { handleVoiceDictationToggle } from './voice-dictation-toggle'
 import { VoiceDictationSettingsSection } from './VoiceDictationSettingsSection'
 import { VoiceSpeechModelSection } from './VoiceSpeechModelSection'
@@ -235,6 +236,23 @@ export function VoicePane({ settings, updateSettings }: VoicePaneProps): React.J
         onOpenOpenAiDialog={openOpenAiDialog}
         onRefreshModelStates={refreshModelStates}
       />
+
+      {selectedModel?.provider === 'self-hosted' && (
+        <>
+          <Separator />
+          <SelfHostedTranscriptionSettingsRow
+            serverUrl={voiceSettings.selfHostedSpeechUrl}
+            model={voiceSettings.selfHostedSpeechModel}
+            disabled={!voiceSettings.enabled}
+            onServerUrlChange={(selfHostedSpeechUrl) =>
+              updateVoiceSettings({ selfHostedSpeechUrl })
+            }
+            onModelChange={(selfHostedSpeechModel) =>
+              updateVoiceSettings({ selfHostedSpeechModel })
+            }
+          />
+        </>
+      )}
 
       {showOpenAiSettingsRow && (
         <>

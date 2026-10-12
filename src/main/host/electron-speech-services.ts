@@ -40,5 +40,5 @@ export const openElectronSpeechDownloadRequest: OpenSpeechDownloadRequest = (url
 export const electronSpeechServiceFactories: SpeechServiceFactories = {
   createModelManager: (customModelsDir) =>
     new ModelManager(customModelsDir, openElectronSpeechDownloadRequest),
-  createSttService: (models) => new SttService(models)
+  createSttService: (models, readVoiceSettings) => new SttService(models, readVoiceSettings)
 }

@@ -12959,6 +12959,17 @@
           "tailscale": "Tailscale · {{address}}",
           "lan": "로컬 네트워크 · {{address}}",
           "loopback": "이 컴퓨터 · {{address}}"
+        },
+        "SelfHostedTranscriptionSettingsRow": {
+          "title": "자체 호스팅 음성 인식 서버",
+          "description": "받아쓰기를 멈추면 녹음된 음성을 이 OpenAI 호환 서버로 보냅니다.",
+          "urlLabel": "서버 주소",
+          "urlInvalid": "http:// 또는 https:// 주소를 입력하세요.",
+          "endpoint": "요청 주소: {{value0}}",
+          "urlHint": "필수 항목입니다. /v1/audio/transcriptions 경로는 자동으로 붙습니다.",
+          "modelLabel": "모델 이름",
+          "modelPlaceholder": "서버 기본값",
+          "modelHint": "서버의 모델 ID와 같아야 합니다. 비워 두면 서버 기본값을 사용합니다."
         }
       },
       "right": {

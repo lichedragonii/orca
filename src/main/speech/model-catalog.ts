@@ -143,6 +143,18 @@ export const SPEECH_MODEL_CATALOG: SpeechModelManifest[] = [
     language: 'multilingual',
     sampleRate: 16000,
     streaming: false
+  },
+  {
+    id: 'self-hosted-transcribe',
+    label: 'Self-hosted server',
+    description:
+      'Your own OpenAI-compatible transcription server, such as Qwen3-ASR on a GPU machine.',
+    // Why: 'openai' is the wire format; the provider says where it runs.
+    type: 'openai',
+    provider: 'self-hosted',
+    language: 'multilingual',
+    sampleRate: 16000,
+    streaming: false
   }
 ]
 

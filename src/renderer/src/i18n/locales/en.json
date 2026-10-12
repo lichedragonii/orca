@@ -13245,6 +13245,17 @@
           "tailscale": "Tailscale · {{address}}",
           "lan": "Local network · {{address}}",
           "loopback": "This computer · {{address}}"
+        },
+        "SelfHostedTranscriptionSettingsRow": {
+          "title": "Self-hosted Transcription Server",
+          "description": "Audio is sent to this OpenAI-compatible server when dictation stops.",
+          "urlLabel": "Server URL",
+          "urlInvalid": "Enter an http:// or https:// address.",
+          "endpoint": "Requests go to {{value0}}",
+          "urlHint": "Required. The /v1/audio/transcriptions path is added automatically.",
+          "modelLabel": "Model name",
+          "modelPlaceholder": "Server default",
+          "modelHint": "Must match the server's model ID. Leave blank to use the server default."
         }
       },
       "right": {

@@ -275,8 +275,7 @@ describe('OrcaRuntimeService', () => {
 
     await runtime.createTerminal(`path:${TEST_WORKTREE_PATH}`)
 
-    const spawnOptions = spawn.mock.calls[0]?.[0] as { runtimeAdmittedPane?: boolean } | undefined
-    expect(spawnOptions?.runtimeAdmittedPane).toBe(true)
+    expect(spawn).toHaveBeenCalledWith(expect.objectContaining({ runtimeAdmittedPane: true }))
   })
 
   it('falls back to background terminal creation for renderer-backed requests without a renderer window', async () => {

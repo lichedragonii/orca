@@ -57,6 +57,7 @@
 1 src/main/runtime/orca-runtime-get-runtime-id.ts
 2 src/main/runtime/orca-runtime-move-headless-mobile-session-tab.ts
 6 src/main/runtime/orca-runtime-persist-headless-session-tab-props.ts
+1 src/main/runtime/orca-runtime-persist-terminal-surface-retirements.ts
 1 src/main/runtime/orca-runtime-pty-foreground-process-reads.ts
 3 src/main/runtime/orca-runtime-stop-terminals-for-worktree.ts
 4 src/main/runtime/runtime-legacy-worker-terminal-recovery-persistence.ts

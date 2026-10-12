@@ -14,11 +14,10 @@ import type { AgentSessionRecordStore } from './agent-session-record-store'
 import { peekOpenedAgentSessionRecordStore } from './agent-session-record-store-slot'
 import { createAgentLaunchRecordWarmupGate } from './agent-launch-record-warmup-gate'
 import { RuntimeWorkspaceLayouts } from './runtime-workspace-layouts'
-import type { HolderStore } from './runtime-workspace-layout-writer'
+import { holderStoreOf } from './runtime-workspace-layout-writer'
 import { reloadHolderOnExternalWrites } from './holder-external-write-reload'
 import { PaneTitleFacts } from './pane-title-facts'
 import { isFrozenOrcadSourceSessionPartition } from '../ssh/orcad-retained-source'
-import type { RuntimeStore } from './runtime-store-contract'
 import type { RemoteLayoutSnapshot } from '../../shared/remote-layout-snapshot'
 import { registerDetectedWorktreeScanInvalidation } from '../ipc/worktrees/listing/register-detected-worktree-scan-invalidation'
 import {
@@ -39,26 +38,10 @@ import { FLOATING_TERMINAL_WORKTREE_ID } from '../../shared/constants'
 import { folderWorkspaceKey } from '../../shared/workspace-scope'
 import { getRepoMainWorktreeId } from '../../shared/worktree/id'
 
-/** The Store's session methods the holder uses; null for a runtime built without them. */
-function holderStore(store: RuntimeStore | null): HolderStore | null {
-  if (!store?.getWorkspaceSession || !store.setWorkspaceSession) {
-    return null
-  }
-  return {
-    getWorkspaceSession: (hostId) => store.getWorkspaceSession!(hostId),
-    // A Store that lists no partitions holds only the local one.
-    getWorkspaceSessionHostIds: () => store.getWorkspaceSessionHostIds?.() ?? ['local'],
-    setWorkspaceSession: (session, hostId) => store.setWorkspaceSession!(session, hostId),
-    ...(store.runDurableMutation
-      ? { runDurableMutation: (mutate) => store.runDurableMutation!(mutate) }
-      : {})
-  }
-}
-
 class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
   /** The one copy of every host partition's tab layout (PR 6). */
   protected readonly layoutHolder = new RuntimeWorkspaceLayouts({
-    store: () => holderStore(this.store),
+    store: () => holderStoreOf(this.store),
     homeHostId: (key) => this.layoutHomeHostId(key),
     isFrozenPartition: (hostId) => {
       const store = this.store
@@ -143,7 +126,7 @@ class OrcaRuntimeService extends OrcaRuntimeWithMigrationCatalog {
     // module registers the generation bump at load; a headless host never loads it.
     registerDetectedWorktreeScanInvalidation()
     registerWorktreeChangeInvalidator((repoId) => this.invalidateWorktreeCatalog(repoId))
-    const store = holderStore(this.store)
+    const store = holderStoreOf(this.store)
     // Before any RPC server starts: every caller of this runtime reads the loaded holder.
     this.layoutHolder.load()
     // What the Store knows now; a worktree only a scan finds joins when the scan lands, before

@@ -14,6 +14,22 @@ export type HolderStore = Required<
 > &
   Pick<RuntimeStore, 'runDurableMutation'>
 
+/** The Store's session methods the holder uses; null for a runtime built without them. */
+export function holderStoreOf(store: RuntimeStore | null): HolderStore | null {
+  if (!store?.getWorkspaceSession || !store.setWorkspaceSession) {
+    return null
+  }
+  return {
+    getWorkspaceSession: (hostId) => store.getWorkspaceSession!(hostId),
+    // A Store that lists no partitions holds only the local one.
+    getWorkspaceSessionHostIds: () => store.getWorkspaceSessionHostIds?.() ?? ['local'],
+    setWorkspaceSession: (session, hostId) => store.setWorkspaceSession!(session, hostId),
+    ...(store.runDurableMutation
+      ? { runDurableMutation: (mutate) => store.runDurableMutation!(mutate) }
+      : {})
+  }
+}
+
 /** Commands written to disk at once, as structural changes are today; the rest on the debounce. */
 export const DURABLE_COMMANDS = new Set<LayoutCommand['type']>([
   'createTerminalTab',

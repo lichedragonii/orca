@@ -197,16 +197,16 @@ describe('RuntimeWorkspaceLayouts: the holder', () => {
         SSH_HOST
       )
     })
-    const frozen = { frozen: undefined as ExecutionHostId | undefined }
+    let frozen: ExecutionHostId | undefined
     const holder = new RuntimeWorkspaceLayouts({
       store: () => store,
       homeHostId: () => SSH_HOST,
-      isFrozenPartition: (hostId) => hostId === frozen.frozen,
+      isFrozenPartition: (hostId) => hostId === frozen,
       terminal: () => ({ fact: null }),
       stopTerminals: () => {}
     })
     holder.load()
-    frozen.frozen = SSH_HOST
+    frozen = SSH_HOST
     holder.apply({ type: 'closeTabs', workspace: SSH_KEY, tabIds: ['tab-h'] })
     expect(store.setWorkspaceSession).not.toHaveBeenCalled()
     expect(holder.published(SSH_KEY)).toBeUndefined()

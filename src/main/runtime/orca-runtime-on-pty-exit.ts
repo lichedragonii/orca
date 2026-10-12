@@ -213,7 +213,7 @@ export class OrcaRuntimeWithOnPtyExit extends OrcaRuntimeWithOnClientDisconnecte
         this.rememberPtyLivenessVerdict(ptyId, { status: 'exited' })
       }
       if (pty) {
-        pty.connected = false
+        this.setPtyConnected(pty, false)
         pty.runtimeSessionOwned = false
         this.setPairedRendererSessionOwnership(pty.ptyId, false)
         pty.disconnectedAt = Date.now()

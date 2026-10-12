@@ -161,6 +161,7 @@ export class OrcaRuntimeWithCreateManagedRemoteWorktree extends OrcaRuntimeWithC
         this.invalidateWorktreeScanCacheForRepo(repoId)
       },
       notifyChanged: (repoId) => this.notifyWorktreesChanged(repoId),
+      addToCatalog: (worktree) => this.addCatalogWorktrees([worktree]),
       showWorktree: (selector) => this.showManagedWorktree(selector)
     })
   }

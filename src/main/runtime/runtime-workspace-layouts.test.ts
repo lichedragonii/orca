@@ -164,6 +164,29 @@ describe('RuntimeWorkspaceLayouts: the holder', () => {
     ])
   })
 
+  it('publishes a kept exit once, as exited, though the model is unchanged', () => {
+    const store = fakeStore({ local: gitSession() })
+    const live = new Set(['pty-1'])
+    const { holder, events } = holderFor(store, live)
+    expect(panesOf(holder)?.[0]?.status).toBe('running')
+    live.delete('pty-1')
+
+    const exit = {
+      exitCode: 2,
+      local: true,
+      spawnedFresh: true,
+      restored: false,
+      inputWritten: false,
+      outputReceived: true
+    }
+    const surface = { worktreeId: GIT_KEY, terminalTabId: 'tab-1', leafId: leaf(1), ptyId: 'pty-1' }
+    expect(holder.processExited('local', surface, exit)).toBe('kept')
+
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({ type: 'workspace', key: GIT_KEY })
+    expect(panesOf(holder)?.[0]?.status).toBe('exited')
+  })
+
   it('stops the processes of panes a close removes', () => {
     const store = fakeStore({ local: gitSession() })
     const { holder, stopped, events } = holderFor(store)

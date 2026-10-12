@@ -137,12 +137,16 @@ export class OrcaRuntimeWithMarkPtyLivenessUnverifiable extends OrcaRuntimeWithO
     // An earned death certificate is KEPT, not dropped, so the register is three-valued on disk as
     // well as in the type. Its only writer is a host-delivered exit frame; nothing weaker may
     // reach it (docs/reference/ssh-execution-boundary.md).
+    const previousStatus = this.ptyLivenessVerdictByPtyId.get(ptyId)?.verdict.status
     this.ptyLivenessVerdictByPtyId.delete(ptyId)
     this.ptyLivenessObservationSequence += 1
     this.ptyLivenessVerdictByPtyId.set(ptyId, {
       verdict,
       observedAt: this.ptyLivenessObservationSequence
     })
+    if (previousStatus !== verdict.status) {
+      this.layoutHolder.republishTerminal(ptyId)
+    }
     while (this.ptyLivenessVerdictByPtyId.size > MAX_TRACKED_PTY_LIVENESS_VERDICTS) {
       let oldestOrphaned: string | null = null
       for (const candidate of this.ptyLivenessVerdictByPtyId.keys()) {
@@ -172,6 +176,9 @@ export class OrcaRuntimeWithMarkPtyLivenessUnverifiable extends OrcaRuntimeWithO
       return
     }
     this.ptyLivenessVerdictByPtyId.delete(ptyId)
+    if (tracked) {
+      this.layoutHolder.republishTerminal(ptyId)
+    }
   }
 
   // ─── Driver state (mobile-presence lock) ──────────────────────────

@@ -31,6 +31,7 @@ function createDeps() {
     pasteDraft: vi.fn(),
     sendFollowup: vi.fn(),
     invalidateResolvedWorktrees: vi.fn(),
+    addToCatalog: vi.fn(),
     notifyWorktreesChanged: vi.fn(),
     emitCreated: vi.fn(),
     activate: vi.fn()
@@ -67,6 +68,26 @@ describe('a folder workspace create with a startup agent', () => {
       deps
     })
     expect(createTerminal).toHaveBeenCalledWith(`id:${result.worktree.id}`, { surfaceOwner: false })
+  })
+
+  it('adds the workspace to the layout catalog before its first terminal or notification', async () => {
+    const { deps, createTerminal } = createDeps()
+    const addToCatalog = vi.fn()
+    const notifyWorktreesChanged = vi.fn()
+    deps.addToCatalog = addToCatalog
+    deps.notifyWorktreesChanged = notifyWorktreesChanged
+    const result = await createRuntimeFolderWorktree({
+      request: { repoSelector: `id:${repo.id}`, name: 'cataloged' },
+      repo,
+      startup: { command: 'codex' },
+      deps
+    })
+    expect(addToCatalog).toHaveBeenCalledWith(
+      expect.objectContaining({ id: result.worktree.id, repoId: repo.id })
+    )
+    const added = addToCatalog.mock.invocationCallOrder[0]!
+    expect(added).toBeLessThan(notifyWorktreesChanged.mock.invocationCallOrder[0]!)
+    expect(added).toBeLessThan(createTerminal.mock.invocationCallOrder[0]!)
   })
 
   it('creates the startup terminal under the pane the caller reserved', async () => {

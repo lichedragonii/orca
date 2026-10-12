@@ -8,15 +8,18 @@ import {
 import { handlers, setupWorktreeHandlers, store } from './worktrees-test-harness'
 import { beginPreparationWork } from '../worktree-create-concurrency'
 
-const { trackMock, probeHookMock, telemetryEnabledMock } = vi.hoisted(() => ({
+const { trackMock, probeHookMock, telemetryEnabledMock, adoptSshCheckoutMock } = vi.hoisted(() => ({
   trackMock: vi.fn<(name: string, props: Record<string, unknown>) => void>(),
   probeHookMock: vi.fn(),
-  telemetryEnabledMock: vi.fn(() => true)
+  telemetryEnabledMock: vi.fn(() => true),
+  adoptSshCheckoutMock: vi.fn()
 }))
 
-vi.mock('electron', async () =>
-  (await import('./worktrees-test-module-mocks')).electronModuleMock()
-)
+vi.mock('electron', async () => ({
+  ...(await import('./worktrees-test-module-mocks')).electronModuleMock(),
+  // Provisioned-root adoption reads the profile path it passes to the mocked SSH checkout.
+  app: { getPath: () => '/tmp/orca-user-data' }
+}))
 vi.mock('../git/worktree', async () =>
   (await import('./worktrees-test-module-mocks')).gitWorktreeModuleMock()
 )
@@ -95,6 +98,9 @@ vi.mock('../telemetry/client', () => ({
 }))
 vi.mock('../git/create-event-repo-probe', () => ({
   probeCreateEventRepoFacts: probeHookMock
+}))
+vi.mock('../provisioned-root-ssh-adoption', () => ({
+  adoptProvisionedRootSshCheckout: adoptSshCheckoutMock
 }))
 
 function makeRepo(fields: Record<string, unknown>) {
@@ -291,5 +297,35 @@ describe('worktrees:create event timing fields', () => {
     expect(trackedEvents('workspace_created')).toHaveLength(0)
     expect(typeof props?.total_ms).toBe('number')
     expect(JSON.stringify(props)).not.toMatch(/fatal|work tree/)
+  })
+})
+
+describe('a created worktree joins the layout catalog before the create answers', () => {
+  it('worktrees:create', async () => {
+    const runtime = setupWorktreeHandlers()
+    useRepo(makeRepo({}))
+    useLocalListing()
+    probeHookMock.mockResolvedValue({ postCheckoutHook: 'absent' })
+
+    await handlers['worktrees:create'](null, { repoId: 'repo-1', name: 'wt' })
+
+    expect(runtime.addCatalogWorktrees).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'repo-1::/workspace/wt' })
+    ])
+  })
+
+  it('worktrees:adoptProvisionedRoot', async () => {
+    const runtime = setupWorktreeHandlers()
+    useRepo(makeRepo({ connectionId: 'ssh-1' }))
+    const worktree = { id: 'repo-1::/srv/repo', repoId: 'repo-1', path: '/srv/repo' }
+    adoptSshCheckoutMock.mockResolvedValue({ worktree })
+
+    await handlers['worktrees:adoptProvisionedRoot'](null, {
+      repoId: 'repo-1',
+      name: 'fix-login',
+      expectedPath: '/srv/repo'
+    })
+
+    expect(runtime.addCatalogWorktrees).toHaveBeenCalledWith([worktree])
   })
 })

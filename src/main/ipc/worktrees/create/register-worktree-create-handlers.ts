@@ -101,6 +101,8 @@ export function registerWorktreeCreateHandlers(context: WorktreeIpcContext): voi
 
         // Why: reaching here means create succeeded (helpers throw); skip a separate workspace_initialized (telemetry-plan.md§Deferred); never send the branch name.
         telemetry.succeeded(result.timing)
+        // The layout catalog learns the worktree before the window can address it.
+        runtime.addCatalogWorktrees([result.worktree])
 
         if (isFolderRepo(repo)) {
           notifyWorktreesChanged(mainWindow, repo.id)
@@ -156,6 +158,7 @@ export function registerWorktreeCreateHandlers(context: WorktreeIpcContext): voi
           throw error
         }
         finishAutomationWorkspaceProvenanceRequest(args.automationProvenanceRequest)
+        runtime.addCatalogWorktrees([result.worktree])
         track('workspace_created', {
           source,
           from_existing_branch: false,

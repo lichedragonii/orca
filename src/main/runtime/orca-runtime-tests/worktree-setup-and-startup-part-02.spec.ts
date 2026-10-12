@@ -610,4 +610,45 @@ describe('OrcaRuntimeService', () => {
       expect.objectContaining({ ptyId: 'pty-cli-setup-setup' })
     )
   })
+
+  it('puts a created worktree in the layout catalog before anyone is told it exists', async () => {
+    const { runtimeStore } = makeRuntimeStoreWithWorkspaceSession(getDefaultWorkspaceSession())
+    // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: The shared fixture implements the RuntimeStore members a create reads.
+    const runtime = new OrcaRuntimeService(runtimeStore as never)
+    const published = (): string[] =>
+      runtime.subscribeWorkspaceLayouts(() => {}).snapshot.map((entry) => entry.key)
+    const publishedWhenNotified: string[][] = []
+    runtime.setNotifier({
+      worktreesChanged: vi.fn(() => publishedWhenNotified.push(published())),
+      reposChanged: vi.fn(),
+      activateWorktree: vi.fn(),
+      createTerminal: vi.fn(),
+      splitTerminal: vi.fn(),
+      renameTerminal: vi.fn(),
+      focusTerminal: vi.fn(),
+      closeTerminal: vi.fn(),
+      sleepWorktree: vi.fn(),
+      terminalFitOverrideChanged: vi.fn(),
+      terminalDriverChanged: vi.fn()
+    })
+    computeWorktreePathMock.mockReturnValue('/tmp/workspaces/runtime-cataloged')
+    ensurePathWithinWorkspaceMock.mockReturnValue('/tmp/workspaces/runtime-cataloged')
+    vi.mocked(listWorktrees).mockResolvedValue([
+      {
+        path: '/tmp/workspaces/runtime-cataloged',
+        head: 'def',
+        branch: 'runtime-cataloged',
+        isBare: false,
+        isMainWorktree: false
+      }
+    ])
+
+    const result = await runtime.createManagedWorktree({
+      repoSelector: 'id:repo-1',
+      name: 'runtime-cataloged'
+    })
+
+    expect(publishedWhenNotified[0]).toContain(result.worktree.id)
+    expect(published()).toContain(result.worktree.id)
+  })
 })

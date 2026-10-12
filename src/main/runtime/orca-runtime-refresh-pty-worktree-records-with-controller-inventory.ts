@@ -263,7 +263,7 @@ export class OrcaRuntimeWithRefreshPtyWorktreeRecordsWithControllerInventory ext
           currentVerdict.observedAt > livenessObservationAtStart &&
           currentVerdict.verdict.status === 'unverifiable'
         ) {
-          pty.connected = false
+          this.setPtyConnected(pty, false)
           pty.disconnectedAt ??= Date.now()
           continue
         }
@@ -277,12 +277,12 @@ export class OrcaRuntimeWithRefreshPtyWorktreeRecordsWithControllerInventory ext
           ) {
             selectedLivePtyIds.add(pty.ptyId)
           }
-          pty.connected = true
+          this.setPtyConnected(pty, true)
           pty.disconnectedAt = null
           this.markPtyLivenessLive(pty.ptyId, livenessObservationAtStart)
           continue
         }
-        pty.connected = false
+        this.setPtyConnected(pty, false)
         pty.disconnectedAt ??= Date.now()
         pty.agentSessionOwners = []
         // Why: this list only enumerates registered providers, so a dropped relay

@@ -30,6 +30,8 @@ type RuntimeFolderWorktreeCreateDeps = {
   pasteDraft: (handle: string, draft: WorktreeStartupDraftPaste) => void
   sendFollowup: (handle: string, followup: WorktreeStartupFollowup) => void
   invalidateResolvedWorktrees: () => void
+  /** The layout catalog learns the workspace before anything can address it. */
+  addToCatalog: (worktree: { id: string; repoId: string }) => void
   notifyWorktreesChanged: (repoId: string) => void
   emitCreated: (event: {
     kind: 'created'
@@ -118,6 +120,7 @@ export async function createRuntimeFolderWorktree(args: {
     ...(request.workspaceStatus !== undefined ? { workspaceStatus: request.workspaceStatus } : {})
   })
   const worktree = mergeRuntimeFolderWorkspace(repo, worktreeId, meta)
+  deps.addToCatalog(worktree)
   deps.invalidateResolvedWorktrees()
   deps.notifyWorktreesChanged(repo.id)
   deps.emitCreated({

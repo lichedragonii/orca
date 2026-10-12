@@ -14,6 +14,7 @@ import type {
   PublishedWorkspaceLayout
 } from '../../shared/workspace-layout/workspace-layout-published'
 import { findTerminalTab } from '../../shared/workspace-layout/workspace-layout-removal'
+import type { PaneOutcomeChanges } from '../../shared/workspace-layout/workspace-layout-pane-outcomes'
 import type { RuntimePaneStartAttempts } from './runtime-pane-start-attempts'
 import type { HolderStore } from './runtime-workspace-layout-writer'
 
@@ -75,4 +76,21 @@ export function holderPaneFacts(
     })
     return { status, ...(terminal?.liveTitle ? { liveTitle: terminal.liveTitle } : {}) }
   }
+}
+
+/** Workspaces an apply changed: a new model object, or an outcome alone (a kept exit). */
+export function changedWorkspaceKeys(
+  before: WorkspaceLayoutModel,
+  after: WorkspaceLayoutModel,
+  outcomes: PaneOutcomeChanges | undefined
+): string[] {
+  const outcomeLeafIds = Object.keys(outcomes ?? {})
+  const keys = new Set([...Object.keys(before.workspaces), ...Object.keys(after.workspaces)])
+  return [...keys].filter((key) => {
+    const workspace = after.workspaces[key]
+    return (
+      before.workspaces[key] !== workspace ||
+      outcomeLeafIds.some((leafId) => workspace?.leaves?.[leafId])
+    )
+  })
 }

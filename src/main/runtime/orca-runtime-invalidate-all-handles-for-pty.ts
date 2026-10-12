@@ -164,7 +164,7 @@ export class OrcaRuntimeWithInvalidateAllHandlesForPty extends OrcaRuntimeWithRe
       if (incarnationId) {
         pty.incarnationId = incarnationId
       }
-      pty.connected = true
+      this.setPtyConnected(pty, true)
       pty.disconnectedAt = null
     }
     for (const leaf of this.getLeavesForPty(ptyId)) {

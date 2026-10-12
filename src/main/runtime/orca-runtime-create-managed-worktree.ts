@@ -103,6 +103,7 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
           pasteDraft: (handle, draft) => this.pasteStartupDraftWhenReady(handle, draft),
           sendFollowup: (handle, followup) => this.sendStartupFollowupWhenReady(handle, followup),
           invalidateResolvedWorktrees: () => this.invalidateResolvedWorktreeCache(),
+          addToCatalog: (worktree) => this.addCatalogWorktrees([worktree]),
           notifyWorktreesChanged: (repoId) => this.notifyWorktreesChanged(repoId),
           emitCreated: (event) => this.emitWorktreeLifecycle(event),
           activate: (repoId, worktreeId, setup, startup) =>
@@ -187,6 +188,8 @@ export class OrcaRuntimeWithCreateManagedWorktree extends OrcaRuntimeWithGetWork
     // rediscover roots only this repo changed.
     invalidateAuthorizedRootsCacheForRepo(this.store, repo)
 
+    // The layout catalog learns the worktree before its first terminal or any caller addresses it.
+    this.addCatalogWorktrees([worktree])
     this.notifyWorktreesChanged(repo.id)
     const {
       warning: terminalWarning,

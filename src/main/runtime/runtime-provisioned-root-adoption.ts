@@ -26,6 +26,8 @@ export type RuntimeProvisionedRootPorts = {
   isSparseCheckoutEnabled: (checkoutPath: string) => Promise<boolean>
   invalidateScan: (repoId: string) => void
   notifyChanged: (repoId: string) => void
+  /** The layout catalog learns the worktree before anything can address it. */
+  addToCatalog: (worktree: { id: string; repoId: string }) => void
   showWorktree: (selector: string) => Promise<Worktree>
 }
 
@@ -63,6 +65,7 @@ export async function adoptRuntimeProvisionedRoot(
       source: 'runtime'
     })
   )
+  ports.addToCatalog({ id: worktreeId, repoId: repo.id })
   ports.invalidateScan(repo.id)
   ports.notifyChanged(repo.id)
   return { worktree: await ports.showWorktree(`id:${worktreeId}`) }

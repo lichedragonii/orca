@@ -29,6 +29,7 @@ function checkout(overrides: Partial<GitWorktreeInfo> = {}): GitWorktreeInfo {
 function ports(worktrees: GitWorktreeInfo[], sparse = false) {
   const setWorktreeMeta = vi.fn()
   const notifyChanged = vi.fn()
+  const addToCatalog = vi.fn()
   const value: RuntimeProvisionedRootPorts = {
     store: {
       getSettings: () => ({ workspaceDir: '/workspaces', nestWorkspaces: false }),
@@ -39,16 +40,17 @@ function ports(worktrees: GitWorktreeInfo[], sparse = false) {
     isSparseCheckoutEnabled: async () => sparse,
     invalidateScan: vi.fn(),
     notifyChanged,
+    addToCatalog,
     showWorktree: async (selector) =>
       // oxlint-disable-next-line typescript/consistent-type-assertions -- SAFETY: adoption only returns the row it was handed; no Worktree field is read.
       ({ id: selector.slice('id:'.length), repoId: repo.id, path: root }) as never
   }
-  return { value, setWorktreeMeta, notifyChanged }
+  return { value, setWorktreeMeta, notifyChanged, addToCatalog }
 }
 
 describe('adoptRuntimeProvisionedRoot', () => {
   it('adopts the primary checkout as the workspace and records it as provisioned-root', async () => {
-    const { value, setWorktreeMeta, notifyChanged } = ports([checkout()])
+    const { value, setWorktreeMeta, notifyChanged, addToCatalog } = ports([checkout()])
     const result = await adoptRuntimeProvisionedRoot(
       'repo-vm',
       { name: 'fix-login', baseBranch: 'main', expectedPath: root, expectedRefHead: 'abc123' },
@@ -66,6 +68,11 @@ describe('adoptRuntimeProvisionedRoot', () => {
     )
     expect(setWorktreeMeta.mock.calls[0][1]).not.toHaveProperty('hostId')
     expect(notifyChanged).toHaveBeenCalledWith('repo-vm')
+    // The layout catalog has it before anyone is told the worktree exists.
+    expect(addToCatalog).toHaveBeenCalledWith({ id: `repo-vm::${root}`, repoId: 'repo-vm' })
+    expect(addToCatalog.mock.invocationCallOrder[0]).toBeLessThan(
+      notifyChanged.mock.invocationCallOrder[0]!
+    )
   })
 
   it.each<[string, GitWorktreeInfo[], boolean, string]>([

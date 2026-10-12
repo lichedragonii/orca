@@ -33,6 +33,7 @@ import {
 } from '../../shared/workspace-layout/workspace-layout-transitions'
 import { RuntimePaneStartAttempts, type PaneStart } from './runtime-pane-start-attempts'
 import {
+  changedWorkspaceKeys,
   emptyPublishedWorkspace,
   holderPaneFacts,
   tabHasOtherBoundPane,
@@ -313,14 +314,8 @@ export class RuntimeWorkspaceLayouts {
       this.deps.stopTerminals(result.effects.stopPtyIds)
     }
     this.save(hostId, durable)
-    const keys = new Set([
-      ...Object.keys(before.layout.workspaces),
-      ...Object.keys(result.model.workspaces)
-    ])
-    for (const key of keys) {
-      if (before.layout.workspaces[key] !== result.model.workspaces[key]) {
-        this.republish(hostId, key)
-      }
+    for (const key of changedWorkspaceKeys(before.layout, result.model, result.outcomes)) {
+      this.republish(hostId, key)
     }
     return starts.length > 0 ? { ...result, starts } : result
   }

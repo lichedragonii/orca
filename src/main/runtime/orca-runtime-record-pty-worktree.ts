@@ -16,6 +16,14 @@ import {
 } from './pty-recorded-surface-topology'
 
 export class OrcaRuntimeWithRecordPtyWorktree extends OrcaRuntimeWithRefreshRepoWorktreeScan {
+  /** The registry's connected fact; a change republishes the panes that show the terminal. */
+  protected setPtyConnected(pty: RuntimePtyWorktreeRecord, connected: boolean): void {
+    if (pty.connected !== connected) {
+      pty.connected = connected
+      this.layoutHolder.republishTerminal(pty.ptyId)
+    }
+  }
+
   protected recordPtyWorktree(
     ptyId: string,
     worktreeId: string,
@@ -114,6 +122,7 @@ export class OrcaRuntimeWithRecordPtyWorktree extends OrcaRuntimeWithRefreshRepo
       }
       // Why: restored/controller-discovered PTYs learn their worktree here without registerPty(), so URL enrichment must bind at this source.
       advertisedUrlWatcher.bindPty(ptyId, worktreeId)
+      this.layoutHolder.republishTerminal(ptyId)
       return pty
     }
 
@@ -168,7 +177,7 @@ export class OrcaRuntimeWithRecordPtyWorktree extends OrcaRuntimeWithRefreshRepo
       )
     }
     if (state.connected !== undefined) {
-      pty.connected = state.connected
+      this.setPtyConnected(pty, state.connected)
       pty.disconnectedAt = state.connected ? null : (pty.disconnectedAt ?? Date.now())
     }
     if (state.lastOutputAt !== undefined) {
